@@ -1,6 +1,7 @@
 """FYERS v3 OAuth helper. Never print or commit access tokens."""
 import argparse
 import os
+import re
 from urllib.parse import parse_qs, urlparse
 from dotenv import load_dotenv
 from fyers_apiv3 import fyersModel
@@ -13,6 +14,12 @@ REDIRECT = os.environ.get("FYERS_REDIRECT_URI", "").strip()
 def session():
     if not all((CLIENT, SECRET, REDIRECT)):
         raise SystemExit("Missing FYERS_CLIENT_ID, FYERS_SECRET_KEY or FYERS_REDIRECT_URI.")
+    if not re.fullmatch(r"[A-Z0-9]{8,12}-\d{3}", CLIENT):
+        raise SystemExit(
+            f"FYERS_CLIENT_ID looks wrong (got {CLIENT[:2]}***{CLIENT[-4:]}, length {len(CLIENT)}). "
+            "Use the APP ID from myapi.fyers.in (like ABCDE12345-100), not your FYERS login ID, "
+            "and no quotes/spaces."
+        )
     return fyersModel.SessionModel(
         client_id=CLIENT,
         secret_key=SECRET,
@@ -39,13 +46,13 @@ def main():
         print(f"Credential check: App ID length={len(CLIENT)}, has_-100_suffix={CLIENT.endswith('-100')}, redirect_matches_expected={REDIRECT == 'https://trade.fyers.in/api-login/redirect-uri/index.html'}")
         url = session().generate_authcode()
         with open("fyers_login_url.txt", "w", encoding="utf-8") as f:
-            f.write(url + "\\n")
+            f.write(url + "\n")
         summary = os.environ.get("GITHUB_STEP_SUMMARY")
         if summary:
             with open(summary, "a", encoding="utf-8") as f:
-                f.write("## FYERS authorisation\\n\\n")
-                f.write("[Open FYERS login page](" + url + ")\\n\\n")
-                f.write("If the button does not open, copy this URL:\\n\\n" + url + "\\n")
+                f.write("## FYERS authorisation\n\n")
+                f.write("[Open FYERS login page](" + url + ")\n\n")
+                f.write("If the button does not open, copy this URL:\n\n" + url + "\n")
         print("FYERS login link added to the workflow summary.")
         return
 
