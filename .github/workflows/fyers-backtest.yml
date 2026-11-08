@@ -1,0 +1,77 @@
+name: FYERS Historical Download & Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbol:
+        description: "FYERS symbol (e.g. NSE:NIFTY50-INDEX or BSE:SENSEX-INDEX)"
+        required: true
+        default: "NSE:NIFTY50-INDEX"
+      resolution:
+        description: "Candle interval in minutes (1, 3, 5, 15, 30, 60, D)"
+        required: true
+        default: "15"
+      start:
+        description: "Start date (YYYY-MM-DD)"
+        required: true
+      end:
+        description: "End date (YYYY-MM-DD)"
+        required: true
+      rr:
+        description: "Risk-reward target multiple"
+        required: true
+        default: "2"
+
+permissions:
+  contents: read
+
+jobs:
+  download-and-backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run automated tests
+        run: pytest -q
+
+      - name: Download FYERS candles
+        env:
+          FYERS_CLIENT_ID: ${{ secrets.FYERS_CLIENT_ID }}
+          FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$FYERS_CLIENT_ID" ] || [ -z "$FYERS_ACCESS_TOKEN" ]; then
+            echo "::error::Add FYERS_CLIENT_ID and FYERS_ACCESS_TOKEN in repository Actions secrets."
+            exit 1
+          fi
+          python download.py \
+            --symbol "${{ inputs.symbol }}" \
+            --resolution "${{ inputs.resolution }}" \
+            --start "${{ inputs.start }}" \
+            --end "${{ inputs.end }}"
+
+      - name: Run strategy backtest
+        run: |
+          FILE="data/${{ inputs.symbol }}_${{ inputs.resolution }}.csv"
+          FILE=$(echo "$FILE" | tr ':' '_')
+          python backtest.py --input "$FILE" --rr "${{ inputs.rr }}"
+
+      - name: Upload candles and trade results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fyers-backtest-${{ inputs.symbol }}-${{ inputs.resolution }}
+          path: |
+            data/*.csv
+          if-no-files-found: warn
+          retention-days: 30
