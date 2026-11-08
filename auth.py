@@ -30,7 +30,7 @@ def main():
     parser.add_argument("action", choices=["login", "exchange"])
     args = parser.parse_args()
     if args.action == "login":
-        print("Open this FYERS URL and authorise the app:\\n" + session().generate_authcode())
+        url = session().generate_authcode()\n        with open("fyers_login_url.txt", "w", encoding="utf-8") as f:\n            f.write(url + "\\n")\n        print("FYERS login URL saved to downloadable artifact: fyers-login-url.")
         return
 
     value = os.environ.get("FYERS_AUTH_CODE", "").strip()
