@@ -10,10 +10,10 @@ from download import fetch_history
 
 SYMBOLS = ["NSE:NIFTY50-INDEX", "BSE:SENSEX-INDEX"]
 # All standard historical candle resolutions documented by FYERS (excluding seconds).
-RESOLUTIONS = ["1", "2", "3", "5", "10", "15", "20", "30", "45", "60", "120", "180", "240", "D", "1W", "1M"]
+RESOLUTIONS = ["5S", "10S", "15S", "30S", "45S", "1", "2", "3", "5", "10", "15", "20", "30", "45", "60", "120", "180", "240", "D", "1W", "1M"]
 
 def download_one(fyers, symbol, resolution, start, end, outdir):
-    chunk_days = 100 if resolution not in ("D", "1D", "1W", "1M") else 366
+    chunk_days = 30 if resolution.endswith("S") else (100 if resolution not in ("D", "1D", "1W", "1M") else 366)
     frames = []
     # Small pause between calls; fail clearly on entitlement/auth/rate errors.
     cursor = start
