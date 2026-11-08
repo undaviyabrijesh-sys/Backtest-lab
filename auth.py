@@ -13,8 +13,13 @@ REDIRECT = os.environ.get("FYERS_REDIRECT_URI", "")
 def session():
     if not all((CLIENT, SECRET, REDIRECT)):
         raise SystemExit("Missing FYERS_CLIENT_ID, FYERS_SECRET_KEY or FYERS_REDIRECT_URI.")
-    return fyersModel.SessionModel(client_id=CLIENT, secret_key=SECRET, redirect_uri=REDIRECT,
-                                   response_type="code", grant_type="authorization_code")
+    return fyersModel.SessionModel(
+        client_id=CLIENT,
+        secret_key=SECRET,
+        redirect_uri=REDIRECT,
+        response_type="code",
+        grant_type="authorization_code",
+    )
 
 def exchange(code):
     s = session()
@@ -29,8 +34,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=["login", "exchange"])
     args = parser.parse_args()
+
     if args.action == "login":
-        url = session().generate_authcode()\n        with open("fyers_login_url.txt", "w", encoding="utf-8") as f:\n            f.write(url + "\\n")\n        print("FYERS login URL saved to downloadable artifact: fyers-login-url.")
+        url = session().generate_authcode()
+        with open("fyers_login_url.txt", "w", encoding="utf-8") as f:
+            f.write(url + "\n")
+        print("FYERS login URL saved to downloadable artifact: fyers-login-url.")
         return
 
     value = os.environ.get("FYERS_AUTH_CODE", "").strip()
@@ -42,9 +51,6 @@ def main():
     token = exchange(code)
     with open(".fyers_access_token", "w", encoding="utf-8") as f:
         f.write(token)
-    if os.environ.get("GITHUB_OUTPUT"):
-        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-            f.write("token_file=.fyers_access_token\\n")
     print("FYERS access token generated. Token value intentionally hidden.")
 
 if __name__ == "__main__":
