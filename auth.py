@@ -1,4 +1,4 @@
-"""Interactive FYERS v3 OAuth; run locally, never in GitHub Actions."""
+"""FYERS v3 OAuth helper. Never print or commit access tokens."""
 import argparse
 import os
 from urllib.parse import parse_qs, urlparse
@@ -12,30 +12,40 @@ REDIRECT = os.environ.get("FYERS_REDIRECT_URI", "")
 
 def session():
     if not all((CLIENT, SECRET, REDIRECT)):
-        raise SystemExit("Set FYERS_CLIENT_ID, FYERS_SECRET_KEY and FYERS_REDIRECT_URI in local .env")
+        raise SystemExit("Missing FYERS_CLIENT_ID, FYERS_SECRET_KEY or FYERS_REDIRECT_URI.")
     return fyersModel.SessionModel(client_id=CLIENT, secret_key=SECRET, redirect_uri=REDIRECT,
                                    response_type="code", grant_type="authorization_code")
+
+def exchange(code):
+    s = session()
+    s.set_token(code)
+    result = s.generate_token()
+    token = result.get("access_token") if isinstance(result, dict) else None
+    if not token:
+        raise SystemExit("Token exchange failed. Check auth code, redirect URI and app credentials.")
+    return token
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=["login", "exchange"])
     args = parser.parse_args()
-    s = session()
     if args.action == "login":
-        print("Open this URL in your browser:\n", s.generate_authcode())
+        print("Open this FYERS URL and authorise the app:\\n" + session().generate_authcode())
         return
-    value = input("Paste redirect URL or auth_code: ").strip()
+
+    value = os.environ.get("FYERS_AUTH_CODE", "").strip()
+    if not value:
+        value = input("Paste redirect URL or auth_code: ").strip()
     code = parse_qs(urlparse(value).query).get("auth_code", [value])[0]
     if not code:
-        raise SystemExit("No auth_code found")
-    s.set_token(code)
-    result = s.generate_token()
-    token = result.get("access_token") if isinstance(result, dict) else None
-    if not token:
-        raise SystemExit("Token exchange failed; check your redirect URL, app settings and auth code")
-    with open(".env", "a", encoding="utf-8") as f:
-        f.write("\nFYERS_ACCESS_TOKEN=" + token + "\n")
-    print("Access token saved locally in .env (never commit).")
+        raise SystemExit("No auth_code found.")
+    token = exchange(code)
+    with open(".fyers_access_token", "w", encoding="utf-8") as f:
+        f.write(token)
+    if os.environ.get("GITHUB_OUTPUT"):
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+            f.write("token_file=.fyers_access_token\\n")
+    print("FYERS access token generated. Token value intentionally hidden.")
 
 if __name__ == "__main__":
     main()
