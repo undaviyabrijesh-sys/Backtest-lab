@@ -38,8 +38,14 @@ def main():
     if args.action == "login":
         url = session().generate_authcode()
         with open("fyers_login_url.txt", "w", encoding="utf-8") as f:
-            f.write(url + "\n")
-        print("FYERS login URL saved to downloadable artifact: fyers-login-url.")
+            f.write(url + "\\n")
+        summary = os.environ.get("GITHUB_STEP_SUMMARY")
+        if summary:
+            with open(summary, "a", encoding="utf-8") as f:
+                f.write("## FYERS authorisation\\n\\n")
+                f.write("[Open FYERS login page](" + url + ")\\n\\n")
+                f.write("If the button does not open, copy this URL:\\n\\n" + url + "\\n")
+        print("FYERS login link added to the workflow summary.")
         return
 
     value = os.environ.get("FYERS_AUTH_CODE", "").strip()
