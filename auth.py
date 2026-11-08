@@ -6,9 +6,9 @@ from dotenv import load_dotenv
 from fyers_apiv3 import fyersModel
 
 load_dotenv()
-CLIENT = os.environ.get("FYERS_CLIENT_ID", "")
-SECRET = os.environ.get("FYERS_SECRET_KEY", "")
-REDIRECT = os.environ.get("FYERS_REDIRECT_URI", "")
+CLIENT = os.environ.get("FYERS_CLIENT_ID", "").strip()
+SECRET = os.environ.get("FYERS_SECRET_KEY", "").strip()
+REDIRECT = os.environ.get("FYERS_REDIRECT_URI", "").strip()
 
 def session():
     if not all((CLIENT, SECRET, REDIRECT)):
@@ -36,6 +36,7 @@ def main():
     args = parser.parse_args()
 
     if args.action == "login":
+        print(f"Credential check: App ID length={len(CLIENT)}, has_-100_suffix={CLIENT.endswith('-100')}, redirect_matches_expected={REDIRECT == 'https://trade.fyers.in/api-login/redirect-uri/index.html'}")
         url = session().generate_authcode()
         with open("fyers_login_url.txt", "w", encoding="utf-8") as f:
             f.write(url + "\\n")
