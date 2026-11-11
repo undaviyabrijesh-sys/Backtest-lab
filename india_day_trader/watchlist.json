@@ -1,0 +1,34 @@
+{
+  "strategy": {
+    "name": "15-minute Opening Range Breakout with 5-minute confirmation",
+    "opening_range_minutes": 15,
+    "opening_range_bars": 3,
+    "entry_start": "09:45",
+    "last_entry": "14:45",
+    "min_total_bars": 8,
+    "ema_period": 20,
+    "min_relative_volume": 1.25,
+    "volume_lookback": 20,
+    "target_rr": 2.0,
+    "max_stop_pct": 2.0,
+    "account_capital_inr": null,
+    "risk_per_trade_pct": 0.5,
+    "max_exposure_pct": 20.0
+  },
+  "instruments": [
+    {"symbol": "NSE:NIFTY50-INDEX", "name": "NIFTY 50", "segment": "index", "enabled": true, "use_vwap": false, "use_volume": false},
+    {"symbol": "NSE:NIFTYBANK-INDEX", "name": "NIFTY BANK", "segment": "index", "enabled": true, "use_vwap": false, "use_volume": false},
+    {"symbol": "BSE:SENSEX-INDEX", "name": "SENSEX", "segment": "index", "enabled": true, "use_vwap": false, "use_volume": false},
+    {"symbol": "NSE:RELIANCE-EQ", "name": "RELIANCE", "segment": "equity", "enabled": true},
+    {"symbol": "NSE:HDFCBANK-EQ", "name": "HDFCBANK", "segment": "equity", "enabled": true},
+    {"symbol": "NSE:ICICIBANK-EQ", "name": "ICICIBANK", "segment": "equity", "enabled": true},
+    {"symbol": "NSE:SBIN-EQ", "name": "SBIN", "segment": "equity", "enabled": true},
+    {"symbol": "NSE:INFY-EQ", "name": "INFY", "segment": "equity", "enabled": true},
+    {"symbol": "NSE:TCS-EQ", "name": "TCS", "segment": "equity", "enabled": true},
+    {"symbol": "NSE:LT-EQ", "name": "LT", "segment": "equity", "enabled": true},
+    {"symbol": "NSE:AXISBANK-EQ", "name": "AXISBANK", "segment": "equity", "enabled": true},
+    {"symbol": "NSE:KOTAKBANK-EQ", "name": "KOTAKBANK", "segment": "equity", "enabled": true},
+    {"symbol": "NSE:BHARTIARTL-EQ", "name": "BHARTIARTL", "segment": "equity", "enabled": true},
+    {"symbol": "NSE:ITC-EQ", "name": "ITC", "segment": "equity", "enabled": true}
+  ]
+}
