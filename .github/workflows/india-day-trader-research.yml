@@ -11,7 +11,7 @@ on:
       start_date:
         description: "History start date (YYYY-MM-DD)"
         required: true
-        default: "2025-11-01"
+        default: "2025-11-11"
         type: string
       end_date:
         description: "History end date (YYYY-MM-DD)"
