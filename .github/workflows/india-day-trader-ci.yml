@@ -10,6 +10,7 @@ on:
       - "tests/test_tracker.py"
       - "tests/test_discord_alerts.py"
       - "tests/test_fyers_auth.py"
+      - "tests/test_pdh_pdl_sweep.py"
       - "india_day_trader/discord_alerts.py"
       - "india_day_trader/research_matrix.py"
       - "india_day_trader/backtest_orb.py"
