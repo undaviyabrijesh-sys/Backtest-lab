@@ -24,7 +24,7 @@ def format_alert(signal):
         "embeds": [{
             "title": f"🇮🇳 INTRADAY SIGNAL — {signal['name']} — {side}",
             "description": (
-                "Paper/research alert only. Entry is the breakout confirmation candle close, "
+                "Paper/research alert only. Entry is the breakout confirmation candle close. The system tracks this reference setup and posts a TP/SL/EOD outcome update; it does not confirm your actual fill. "
                 "not a guaranteed fill. Verify live price, liquidity, charges and slippage before acting. "
                 "No order has been placed."
             ),
