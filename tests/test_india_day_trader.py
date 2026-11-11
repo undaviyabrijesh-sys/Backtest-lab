@@ -61,5 +61,6 @@ def test_completed_candles_discards_open_bar():
 def test_market_window_is_weekday_only_and_time_bounded():
     assert in_market_window(datetime(2026, 11, 10, 10, 0, tzinfo=IST))
     assert in_market_window(datetime(2026, 11, 10, 15, 0, tzinfo=IST))
-    assert not in_market_window(datetime(2026, 11, 10, 15, 31, tzinfo=IST))
+    assert in_market_window(datetime(2026, 11, 10, 15, 45, tzinfo=IST))
+    assert not in_market_window(datetime(2026, 11, 10, 16, 1, tzinfo=IST))
     assert not in_market_window(datetime(2026, 11, 8, 10, 0, tzinfo=IST))
