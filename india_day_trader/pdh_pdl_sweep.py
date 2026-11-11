@@ -4,11 +4,14 @@ A completed 5-minute candle must sweep a prior-session extreme and close back
 inside that level. The next candle must break the sweep candle's opposite edge.
 Entries are simulated only after that confirmation; no live order code exists.
 """
+import argparse
+import json
 from datetime import time
+from pathlib import Path
 
 import pandas as pd
 
-from .backtest_orb import _exit_trade, normalize_candles
+from .backtest_orb import _exit_trade, normalize_candles, summarize
 
 
 def run_backtest(candles, rr=2.0, cost_bps_per_side=10.0,
@@ -102,3 +105,37 @@ def run_backtest(candles, rr=2.0, cost_bps_per_side=10.0,
                 break
 
     return pd.DataFrame(trades)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="PDH/PDL 5-minute sweep-reversal research backtest")
+    parser.add_argument("--input", required=True, help="CSV with datetime, open, high, low, close, volume")
+    parser.add_argument("--output", default="data/pdh_pdl_sweep_trades.csv")
+    parser.add_argument("--summary", default="data/pdh_pdl_sweep_summary.json")
+    parser.add_argument("--rr", type=float, default=2.0)
+    parser.add_argument("--cost-bps-per-side", type=float, default=10.0)
+    parser.add_argument("--slippage-bps-per-side", type=float, default=2.0)
+    parser.add_argument("--max-stop-pct", type=float, default=2.0)
+    args = parser.parse_args()
+
+    trades = run_backtest(
+        pd.read_csv(args.input),
+        rr=args.rr,
+        cost_bps_per_side=args.cost_bps_per_side,
+        slippage_bps_per_side=args.slippage_bps_per_side,
+        max_stop_pct=args.max_stop_pct,
+    )
+    output = Path(args.output)
+    summary_path = Path(args.summary)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    trades.to_csv(output, index=False)
+    report = summarize(trades)
+    summary_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    print(json.dumps(report, indent=2))
+    print(f"Trades saved: {output}")
+    print(f"Summary saved: {summary_path}")
+
+
+if __name__ == "__main__":
+    main()
