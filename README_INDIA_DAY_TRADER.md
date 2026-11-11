@@ -21,22 +21,17 @@ This MVP is alert-only. It does not place, modify or cancel broker orders. The e
 
 In this repository go to Settings -> Secrets and variables -> Actions -> New repository secret and add:
 
-- FYERS_CLIENT_ID — FYERS app ID (not the trading login ID).
-- FYERS_ACCESS_TOKEN — current FYERS v3 access token. FYERS documents that individual-app tokens expire daily at 6:30 AM IST; generate a new token after 6:30 AM on each trading day and update this GitHub secret. Do not commit it or paste it in chat.
-- DISCORD_WEBHOOK_URL — webhook URL for the Discord channel where alerts should appear. Keep it private.
+- `FYERS_CLIENT_ID` — FYERS app ID (not the trading login ID).
+- `FYERS_SECRET_KEY` — the app secret from your FYERS API dashboard.
+- `FYERS_REFRESH_TOKEN` — the refresh token returned by the first FYERS auth-code exchange. The `auth.py exchange` command now saves it locally as `.fyers_refresh_token`; copy its value into this GitHub secret without sharing it in chat.
+- `FYERS_PIN` — your FYERS trading PIN. Store it only as a GitHub Actions secret; never put it in code or a committed file.
+- `DISCORD_WEBHOOK_URL` — webhook URL for the Discord channel where alerts should appear. Keep it private.
+
+The alert workflow prefers the refresh-token flow to generate a fresh daily access token. FYERS says access tokens expire daily at 6:30 AM IST and its refresh tokens remain valid for 15 days. After the refresh token expires, repeat the browser authorization flow and replace the `FYERS_REFRESH_TOKEN` secret. A manually renewed `FYERS_ACCESS_TOKEN` secret is supported as a fallback, but it must be refreshed after 6:30 AM IST every trading day.
+
+For local token refresh, put the client ID, app secret, refresh token and PIN in your untracked local `.env` file, then run `python -m india_day_trader.fyers_auth`. The refreshed access token is written to the ignored `.fyers_access_token` file. Never commit either token file.
 
 The existing requirements.txt already contains FYERS, pandas, dotenv and pytest dependencies.
-
-## Run locally
-
-    pip install -r requirements.txt
-    export FYERS_CLIENT_ID="..."
-    export FYERS_ACCESS_TOKEN="..."
-    export DISCORD_WEBHOOK_URL="..."
-    python -m pytest -q
-    python -m india_day_trader.scanner --dry-run
-
-On Windows PowerShell, use $env:FYERS_CLIENT_ID="..." etc. A local .env file is also supported by python-dotenv and must never be committed.
 
 ## GitHub Actions
 
