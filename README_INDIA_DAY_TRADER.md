@@ -73,3 +73,10 @@ This is OHLC-based paper tracking, not broker order tracking. The initial entry 
 A second, research-only strategy is available as `india_day_trader.pdh_pdl_sweep`. It uses the prior completed session's high and low, detects a 5-minute sweep that closes back inside the prior-day level, and requires the following candle to break the sweep candle's opposite edge before entry. It shares the conservative stop-first same-candle handling and cost/slippage model with the ORB backtester.
 
 This module is not wired into the live scanner or Discord signal stream. Run tests and historical replay first; do not promote it to live alerts based on synthetic fixtures. Use at least six to twelve months of clean 5-minute data and separate in-sample/out-of-sample sessions before judging it.
+
+
+## Run a real historical research job
+
+After the PR is merged and FYERS authentication secrets are configured, open Actions -> **India Day Trader — Historical Research** -> Run workflow. Choose an exchange symbol, start/end dates, and effective per-side cost/slippage assumptions. The workflow downloads 5-minute candles directly from FYERS, runs the cost-aware ORB backtest, the 36-variant chronological research matrix, and the PDH/PDL sweep-reversal backtest. It uploads the candle file, trade ledgers and JSON summaries as a 90-day artifact; it does not commit market data to Git.
+
+Start with one highly liquid cash-equity symbol such as `NSE:RELIANCE-EQ`. For index symbols, the output is in underlying index points and is not equivalent to futures or option-premium P&L. Use instrument-appropriate transaction-cost assumptions. The job requires at least two distinct sessions for the out-of-sample matrix. FYERS history coverage is account-plan and symbol dependent.
