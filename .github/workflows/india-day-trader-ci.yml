@@ -7,6 +7,7 @@ on:
       - "tests/test_india_day_trader.py"
       - "tests/test_backtest_orb.py"
       - "tests/test_research_matrix.py"
+      - "tests/test_tracker.py"
       - "india_day_trader/research_matrix.py"
       - "india_day_trader/backtest_orb.py"
       - "backtest.py"
