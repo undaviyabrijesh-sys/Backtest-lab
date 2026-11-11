@@ -5,6 +5,7 @@ on:
     paths:
       - "india_day_trader/**"
       - "tests/test_india_day_trader.py"
+      - "backtest.py"
       - ".github/workflows/india-day-trader-*.yml"
       - "requirements.txt"
   push:
