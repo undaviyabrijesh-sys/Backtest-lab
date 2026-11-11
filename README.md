@@ -40,3 +40,8 @@ The Actions workflow now downloads both index symbols across all documented FYER
 Run Actions -> "Download All NIFTY & SENSEX Historical Data" -> Run workflow. Defaults are set for a Standard-plan starting point: intraday 2025-11-08 and daily 2021-01-01, ending 2026-11-07. Change dates if your FYERS plan permits more history. FYERS currently documents Standard access as approximately 1 year intraday and 5 years daily; Prime offers 5+ years intraday and 25+ years daily. Historical data is subject to symbol availability and account entitlements. Seconds data is only available for the most recent 30 trading days on eligible plans. See the official [FYERS historical-data limits](https://fyers.in/api-docs/v3/api/market-data/historical-data).
 
 The workflow uploads CSV files as a 90-day artifact. It does not push market data into Git (large datasets should not be committed to the repository). No backtest is run by the bulk-download workflow yet; first validate the downloaded files and coverage.
+
+
+## India Day Trader (development)
+
+An India-market intraday scanner with FYERS candle data and Discord research alerts is under development on the `india-day-trader` branch. See [README_INDIA_DAY_TRADER.md](README_INDIA_DAY_TRADER.md) for setup, secrets and safety limits. This work is kept off `main` until tested.

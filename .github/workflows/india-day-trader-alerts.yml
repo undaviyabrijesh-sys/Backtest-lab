@@ -1,0 +1,88 @@
+name: India Day Trader — Discord Alerts
+
+on:
+  workflow_dispatch:
+  schedule:
+    # GitHub cron is UTC. The scanner itself gates entries to 09:45–14:45 IST.
+    - cron: "*/15 4-9 * * 1-5"
+    - cron: "0 10 * * 1-5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: india-day-trader-alerts
+  cancel-in-progress: false
+
+jobs:
+  scan-and-alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Restore alert de-duplication state
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/india_trader_alert_state.json
+          key: india-trader-alert-state-${{ github.run_id }}
+          restore-keys: |
+            india-trader-alert-state-
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run automated tests
+        run: python -m pytest -q
+      - name: Check required secrets
+        env:
+          FYERS_CLIENT_ID: ${{ secrets.FYERS_CLIENT_ID }}
+          FYERS_SECRET_KEY: ${{ secrets.FYERS_SECRET_KEY }}
+          FYERS_REFRESH_TOKEN: ${{ secrets.FYERS_REFRESH_TOKEN }}
+          FYERS_PIN: ${{ secrets.FYERS_PIN }}
+          FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          test -n "$FYERS_CLIENT_ID" || { echo "::error::Missing FYERS_CLIENT_ID secret"; exit 1; }
+          test -n "$DISCORD_WEBHOOK_URL" || { echo "::error::Missing DISCORD_WEBHOOK_URL secret"; exit 1; }
+          if [ -n "$FYERS_REFRESH_TOKEN" ] && [ -n "$FYERS_SECRET_KEY" ] && [ -n "$FYERS_PIN" ]; then
+            echo "FYERS refresh-token authentication is configured."
+          elif [ -n "$FYERS_ACCESS_TOKEN" ]; then
+            echo "::warning::Using static FYERS_ACCESS_TOKEN fallback; it must be renewed after 6:30 AM IST every trading day."
+          else
+            echo "::error::Configure FYERS_REFRESH_TOKEN, FYERS_SECRET_KEY and FYERS_PIN, or provide a fresh FYERS_ACCESS_TOKEN."
+            exit 1
+          fi
+      - name: Generate daily FYERS access token
+        env:
+          FYERS_CLIENT_ID: ${{ secrets.FYERS_CLIENT_ID }}
+          FYERS_SECRET_KEY: ${{ secrets.FYERS_SECRET_KEY }}
+          FYERS_REFRESH_TOKEN: ${{ secrets.FYERS_REFRESH_TOKEN }}
+          FYERS_PIN: ${{ secrets.FYERS_PIN }}
+          FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
+        run: |
+          if [ -n "$FYERS_REFRESH_TOKEN" ] && [ -n "$FYERS_SECRET_KEY" ] && [ -n "$FYERS_PIN" ]; then
+            python -m india_day_trader.fyers_auth
+          else
+            echo "FYERS_ACCESS_TOKEN=$FYERS_ACCESS_TOKEN" >> "$GITHUB_ENV"
+          fi
+      - name: Initialize alert state
+        run: |
+          mkdir -p .cache
+          test -f .cache/india_trader_alert_state.json || printf '{"sent":{}}\n' > .cache/india_trader_alert_state.json
+      - name: Scan the configured NSE/BSE watchlist and send Discord alerts
+        env:
+          FYERS_CLIENT_ID: ${{ secrets.FYERS_CLIENT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          INDIA_TRADER_STATE_PATH: .cache/india_trader_alert_state.json
+        run: python -m india_day_trader.scanner
+      - name: Save alert de-duplication state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/india_trader_alert_state.json
+          key: india-trader-alert-state-${{ github.run_id }}

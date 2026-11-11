@@ -5,3 +5,9 @@ data/
 __pycache__/
 .pytest_cache/
 *.pyc
+
+# Local FYERS OAuth secrets and auth URLs
+.fyers_access_token
+.fyers_refresh_token
+fyers_login_url.txt
+.cache/
