@@ -1,6 +1,6 @@
-"""FYERS-backed NSE/BSE 5-minute Opening Range Breakout scanner.
+"""Yahoo Finance-backed NSE/BSE 5-minute Opening Range Breakout scanner.
 
-This module emits research alerts only. It deliberately contains no broker order API.
+Yahoo intraday data is unofficial and may be delayed or incomplete. Research/paper alerts only.
 """
 import argparse
 import json
@@ -13,6 +13,7 @@ import pandas as pd
 from dotenv import load_dotenv
 
 from .discord_alerts import send_discord, send_discord_status
+from .yahoo_source import fetch_yahoo_candles
 from .risk import plan_trade, position_size
 from .tracker import advance_signal
 
@@ -28,7 +29,7 @@ def load_watchlist(path=DEFAULT_WATCHLIST):
 
 
 def completed_candles(raw_candles, now, interval_minutes=5):
-    """Convert FYERS epoch candles to IST and discard any still-forming candle."""
+    """Convert epoch candles to IST and discard any still-forming candle."""
     if not raw_candles:
         return pd.DataFrame(columns=["datetime", "open", "high", "low", "close", "volume"])
     df = pd.DataFrame(raw_candles, columns=["timestamp", "open", "high", "low", "close", "volume"])
@@ -151,19 +152,9 @@ def build_orb_signal(candles, instrument, settings, now=None):
         }
     return None
 
-def fetch_symbol_candles(fyers, symbol, today):
-    response = fyers.history(data={
-        "symbol": symbol,
-        "resolution": "5",
-        "date_format": "1",
-        "range_from": today.isoformat(),
-        "range_to": today.isoformat(),
-        "cont_flag": "1",
-    })
-    if not isinstance(response, dict) or response.get("s") != "ok":
-        reason = response.get("message", response.get("code", "unknown FYERS error")) if isinstance(response, dict) else "invalid response"
-        raise RuntimeError(f"FYERS history failed for {symbol}: {reason}")
-    return response.get("candles", [])
+def fetch_symbol_candles(instrument, now):
+    """Fetch today's 5-minute bars from Yahoo Finance and normalize to IST."""
+    return fetch_yahoo_candles(instrument, now=now)
 
 
 def load_state(path):
@@ -205,16 +196,13 @@ def run_scan(dry_run=False, now=None, watchlist_path=DEFAULT_WATCHLIST, state_pa
         print(f"Outside monitoring window: {now:%Y-%m-%d %H:%M %Z}")
         return []
 
-    client_id = os.getenv("FYERS_CLIENT_ID", "").strip()
-    access_token = os.getenv("FYERS_ACCESS_TOKEN", "").strip()
+    data_source = os.getenv("MARKET_DATA_SOURCE", "yahoo").strip().lower()
     webhook = os.getenv("DISCORD_WEBHOOK_URL", "").strip()
-    if not client_id or not access_token:
-        raise SystemExit("Missing FYERS_CLIENT_ID or FYERS_ACCESS_TOKEN environment secret.")
+    if data_source != "yahoo":
+        raise SystemExit(f"Unsupported MARKET_DATA_SOURCE={data_source!r}; currently supported: yahoo.")
     if not dry_run and not webhook:
         raise SystemExit("Missing DISCORD_WEBHOOK_URL environment secret.")
 
-    from fyers_apiv3 import fyersModel
-    fyers = fyersModel.FyersModel(client_id=client_id, token=access_token, is_async=False, log_path="")
     config = load_watchlist(watchlist_path)
     settings = config.get("strategy", {})
     state = load_state(state_path)
@@ -249,8 +237,7 @@ def run_scan(dry_run=False, now=None, watchlist_path=DEFAULT_WATCHLIST, state_pa
                         save_state(state_path, state)
                     continue
 
-                raw = fetch_symbol_candles(fyers, symbol, now.date())
-                bars = completed_candles(raw, now, 5)
+                bars = fetch_symbol_candles(instrument, now)
                 advanced, event = advance_signal(
                     open_signal, bars, now=now,
                     flat_time=settings.get("force_flat_time", "15:20")
@@ -274,8 +261,7 @@ def run_scan(dry_run=False, now=None, watchlist_path=DEFAULT_WATCHLIST, state_pa
             if not in_entry_window(now) or key in sent:
                 continue
 
-            raw = fetch_symbol_candles(fyers, symbol, now.date())
-            bars = completed_candles(raw, now, 5)
+            bars = fetch_symbol_candles(instrument, now)
             signal = build_orb_signal(bars, instrument, settings, now)
             if not signal:
                 continue
@@ -301,7 +287,7 @@ def run_scan(dry_run=False, now=None, watchlist_path=DEFAULT_WATCHLIST, state_pa
     return emitted
 
 def main():
-    parser = argparse.ArgumentParser(description="India intraday ORB signal scanner (alerts only)")
+    parser = argparse.ArgumentParser(description="India intraday ORB signal scanner (Yahoo Finance, alerts only)")
     parser.add_argument("--dry-run", action="store_true", help="print signals and do not send Discord alerts")
     parser.add_argument("--watchlist", default=str(DEFAULT_WATCHLIST))
     parser.add_argument("--state", default=str(DEFAULT_STATE))
