@@ -40,9 +40,9 @@ On Windows PowerShell, use $env:FYERS_CLIENT_ID="..." etc. A local .env file is 
 
 ## GitHub Actions
 
-The workflow .github/workflows/india-day-trader-alerts.yml has a manual trigger and a weekday 5-minute schedule in UTC. The scanner itself only evaluates entries between 09:45 and 14:45 IST. GitHub only runs scheduled workflows from the default branch, and the manual Run workflow button also requires the workflow to exist on the default branch. While this work remains on the development branch, the pull-request CI workflow runs the offline tests; after tests and secrets are verified, merge the development branch into the default branch to activate manual and scheduled alert runs.
+The workflow .github/workflows/india-day-trader-alerts.yml has a manual trigger and a weekday 10-minute schedule in UTC. The scanner itself only evaluates entries between 09:45 and 14:45 IST. GitHub only runs scheduled workflows from the default branch, and the manual Run workflow button also requires the workflow to exist on the default branch. While this work remains on the development branch, the pull-request CI workflow runs the offline tests; after tests and secrets are verified, merge the development branch into the default branch to activate manual and scheduled alert runs.
 
-GitHub-hosted schedules are best-effort and can be delayed. Do not treat them as a low-latency execution feed. The workflow caches the de-duplication state between runs to avoid repeated alerts for the same symbol on the same trading date.
+The 10-minute job cadence checks the two most recent completed 5-minute bars and ignores breakouts more than 10 minutes past candle close. GitHub-hosted schedules are best-effort and can be delayed. Do not treat them as a low-latency execution feed. The workflow caches the de-duplication state between runs to avoid repeated alerts for the same symbol on the same trading date.
 
 ## Configuration
 
