@@ -190,7 +190,7 @@ def save_state(path, state):
 
 def in_market_window(now):
     now = now.astimezone(IST)
-    return now.weekday() < 5 and time(9, 30) <= now.time() <= time(15, 30)
+    return now.weekday() < 5 and time(9, 30) <= now.time() <= time(16, 0)
 
 
 def in_entry_window(now):
