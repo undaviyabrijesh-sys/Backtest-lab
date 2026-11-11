@@ -1,0 +1,142 @@
+name: India Day Trader — Historical Research
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbol:
+        description: "FYERS symbol from the symbol master"
+        required: true
+        default: "NSE:RELIANCE-EQ"
+        type: string
+      start_date:
+        description: "History start date (YYYY-MM-DD)"
+        required: true
+        default: "2025-11-01"
+        type: string
+      end_date:
+        description: "History end date (YYYY-MM-DD)"
+        required: true
+        default: "2026-11-10"
+        type: string
+      cost_bps_per_side:
+        description: "Effective all-in cost assumption per side (bps)"
+        required: true
+        default: "10"
+        type: string
+      slippage_bps_per_side:
+        description: "Adverse slippage assumption per side (bps)"
+        required: true
+        default: "2"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  download-and-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Check FYERS authentication secrets
+        env:
+          FYERS_CLIENT_ID: ${{ secrets.FYERS_CLIENT_ID }}
+          FYERS_SECRET_KEY: ${{ secrets.FYERS_SECRET_KEY }}
+          FYERS_REFRESH_TOKEN: ${{ secrets.FYERS_REFRESH_TOKEN }}
+          FYERS_PIN: ${{ secrets.FYERS_PIN }}
+          FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
+        run: |
+          test -n "$FYERS_CLIENT_ID" || { echo "::error::Missing FYERS_CLIENT_ID secret"; exit 1; }
+          if [ -n "$FYERS_REFRESH_TOKEN" ] && [ -n "$FYERS_SECRET_KEY" ] && [ -n "$FYERS_PIN" ]; then
+            echo "FYERS refresh-token authentication is configured."
+          elif [ -n "$FYERS_ACCESS_TOKEN" ]; then
+            echo "::warning::Using static access-token fallback; it must be fresh after 6:30 AM IST."
+          else
+            echo "::error::Configure FYERS_REFRESH_TOKEN, FYERS_SECRET_KEY and FYERS_PIN, or a fresh FYERS_ACCESS_TOKEN."
+            exit 1
+          fi
+      - name: Generate daily FYERS access token
+        env:
+          FYERS_CLIENT_ID: ${{ secrets.FYERS_CLIENT_ID }}
+          FYERS_SECRET_KEY: ${{ secrets.FYERS_SECRET_KEY }}
+          FYERS_REFRESH_TOKEN: ${{ secrets.FYERS_REFRESH_TOKEN }}
+          FYERS_PIN: ${{ secrets.FYERS_PIN }}
+          FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
+        run: |
+          if [ -n "$FYERS_REFRESH_TOKEN" ] && [ -n "$FYERS_SECRET_KEY" ] && [ -n "$FYERS_PIN" ]; then
+            python -m india_day_trader.fyers_auth
+          else
+            echo "FYERS_ACCESS_TOKEN=$FYERS_ACCESS_TOKEN" >> "$GITHUB_ENV"
+          fi
+      - name: Validate research inputs
+        env:
+          SYMBOL: ${{ inputs.symbol }}
+          START_DATE: ${{ inputs.start_date }}
+          END_DATE: ${{ inputs.end_date }}
+          COST_BPS: ${{ inputs.cost_bps_per_side }}
+          SLIPPAGE_BPS: ${{ inputs.slippage_bps_per_side }}
+        run: |
+          python - <<'PY'
+          import os, re
+          from datetime import date
+          symbol = os.environ["SYMBOL"].strip()
+          if not re.fullmatch(r"[A-Z0-9]+:[A-Z0-9_-]+", symbol):
+              raise SystemExit("Symbol must look like NSE:RELIANCE-EQ or NSE:NIFTY50-INDEX")
+          start, end = date.fromisoformat(os.environ["START_DATE"]), date.fromisoformat(os.environ["END_DATE"])
+          if start > end:
+              raise SystemExit("start_date must be on or before end_date")
+          for key in ("COST_BPS", "SLIPPAGE_BPS"):
+              if float(os.environ[key]) < 0:
+                  raise SystemExit(f"{key} cannot be negative")
+          PY
+      - name: Download 5-minute FYERS candles
+        env:
+          FYERS_CLIENT_ID: ${{ secrets.FYERS_CLIENT_ID }}
+          SYMBOL: ${{ inputs.symbol }}
+          START_DATE: ${{ inputs.start_date }}
+          END_DATE: ${{ inputs.end_date }}
+        run: |
+          python download.py --symbol "$SYMBOL" --resolution 5 --start "$START_DATE" --end "$END_DATE"
+      - name: Run cost-aware ORB backtest
+        env:
+          SYMBOL: ${{ inputs.symbol }}
+          COST_BPS: ${{ inputs.cost_bps_per_side }}
+          SLIPPAGE_BPS: ${{ inputs.slippage_bps_per_side }}
+        run: |
+          FILE="data/${SYMBOL//:/_}_5.csv"
+          python -m india_day_trader.backtest_orb --input "$FILE"             --cost-bps-per-side "$COST_BPS" --slippage-bps-per-side "$SLIPPAGE_BPS"
+      - name: Run ORB out-of-sample research matrix
+        env:
+          SYMBOL: ${{ inputs.symbol }}
+          COST_BPS: ${{ inputs.cost_bps_per_side }}
+          SLIPPAGE_BPS: ${{ inputs.slippage_bps_per_side }}
+        run: |
+          FILE="data/${SYMBOL//:/_}_5.csv"
+          python -m india_day_trader.research_matrix --input "$FILE"             --cost-bps-per-side "$COST_BPS" --slippage-bps-per-side "$SLIPPAGE_BPS"
+      - name: Run PDH/PDL sweep-reversal backtest
+        env:
+          SYMBOL: ${{ inputs.symbol }}
+          COST_BPS: ${{ inputs.cost_bps_per_side }}
+          SLIPPAGE_BPS: ${{ inputs.slippage_bps_per_side }}
+        run: |
+          FILE="data/${SYMBOL//:/_}_5.csv"
+          python -m india_day_trader.pdh_pdl_sweep --input "$FILE"             --cost-bps-per-side "$COST_BPS" --slippage-bps-per-side "$SLIPPAGE_BPS"
+      - name: Upload historical data and research reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: india-day-trader-research-${{ github.run_number }}
+          path: |
+            data/*.csv
+            data/*.json
+          if-no-files-found: warn
+          retention-days: 90
