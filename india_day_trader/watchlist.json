@@ -6,7 +6,7 @@
     "entry_start": "09:45",
     "last_entry": "14:45",
     "min_total_bars": 8,
-    "signal_lookback_bars": 3,
+    "signal_lookback_bars": 4,
     "max_signal_age_minutes": 15,
     "force_flat_time": "15:20",
     "ema_period": 20,
