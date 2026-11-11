@@ -12,8 +12,9 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 from dotenv import load_dotenv
 
-from .discord_alerts import send_discord
+from .discord_alerts import send_discord, send_discord_status
 from .risk import plan_trade, position_size
+from .tracker import advance_signal
 
 IST = ZoneInfo("Asia/Kolkata")
 ROOT = Path(__file__).resolve().parent
@@ -143,6 +144,7 @@ def build_orb_signal(candles, instrument, settings, now=None):
             "vwap": vwap,
             "relative_volume": volume_multiple,
             "candle_time": bar["datetime"].strftime("%Y-%m-%d %H:%M %Z"),
+            "signal_timestamp": bar["datetime"].isoformat(),
             "signal_age_minutes": round((now - bar_close_time).total_seconds() / 60.0, 1),
             "signal_date": now.date().isoformat(),
             "strategy": "orb_15m_5m_v1",
@@ -166,14 +168,17 @@ def fetch_symbol_candles(fyers, symbol, today):
 
 def load_state(path):
     if not path.exists():
-        return {"sent": {}}
+        return {"sent": {}, "open_signals": {}, "closed_signals": []}
     try:
         state = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(state.get("sent"), dict):
-            return {"sent": {}}
+        if not isinstance(state, dict):
+            return {"sent": {}, "open_signals": {}, "closed_signals": []}
+        state.setdefault("sent", {})
+        state.setdefault("open_signals", {})
+        state.setdefault("closed_signals", [])
         return state
     except (OSError, json.JSONDecodeError):
-        return {"sent": {}}
+        return {"sent": {}, "open_signals": {}, "closed_signals": []}
 
 
 def save_state(path, state):
@@ -185,6 +190,11 @@ def save_state(path, state):
 
 def in_market_window(now):
     now = now.astimezone(IST)
+    return now.weekday() < 5 and time(9, 30) <= now.time() <= time(15, 30)
+
+
+def in_entry_window(now):
+    now = now.astimezone(IST)
     return now.weekday() < 5 and time(9, 45) <= now.time() <= time(14, 45)
 
 
@@ -192,7 +202,7 @@ def run_scan(dry_run=False, now=None, watchlist_path=DEFAULT_WATCHLIST, state_pa
     load_dotenv()
     now = (now or datetime.now(IST)).astimezone(IST)
     if not in_market_window(now):
-        print(f"Outside signal window: {now:%Y-%m-%d %H:%M %Z}")
+        print(f"Outside monitoring window: {now:%Y-%m-%d %H:%M %Z}")
         return []
 
     client_id = os.getenv("FYERS_CLIENT_ID", "").strip()
@@ -209,6 +219,8 @@ def run_scan(dry_run=False, now=None, watchlist_path=DEFAULT_WATCHLIST, state_pa
     settings = config.get("strategy", {})
     state = load_state(state_path)
     sent = state["sent"]
+    open_signals = state["open_signals"]
+    closed_signals = state["closed_signals"]
     emitted = []
 
     for instrument in config.get("instruments", []):
@@ -216,9 +228,52 @@ def run_scan(dry_run=False, now=None, watchlist_path=DEFAULT_WATCHLIST, state_pa
             continue
         symbol = instrument["symbol"]
         key = f"{now.date().isoformat()}|{symbol}|orb_15m_5m_v1"
-        if key in sent:
-            continue
         try:
+            # An open reference signal takes priority over discovering a new one.
+            if symbol in open_signals:
+                open_signal = open_signals[symbol]
+                if open_signal.get("signal_date") != now.date().isoformat():
+                    unresolved = dict(open_signal)
+                    unresolved.update({
+                        "status": "UNRESOLVED",
+                        "outcome": "DATA_GAP",
+                        "exit_time": now.isoformat(),
+                    })
+                    if dry_run:
+                        print(json.dumps({"event": "DATA_GAP", "signal": unresolved}, default=str))
+                    else:
+                        send_discord_status(webhook, unresolved, "DATA_GAP")
+                        open_signals.pop(symbol, None)
+                        closed_signals.append(unresolved)
+                        state["closed_signals"] = closed_signals[-500:]
+                        save_state(state_path, state)
+                    continue
+
+                raw = fetch_symbol_candles(fyers, symbol, now.date())
+                bars = completed_candles(raw, now, 5)
+                advanced, event = advance_signal(
+                    open_signal, bars, now=now,
+                    flat_time=settings.get("force_flat_time", "15:20")
+                )
+                if event:
+                    if dry_run:
+                        print(json.dumps({"event": event, "signal": advanced}, default=str))
+                    else:
+                        # Persist closure only after Discord acknowledges the status message,
+                        # so a failed webhook is retried on the next scan.
+                        send_discord_status(webhook, advanced, event)
+                        open_signals.pop(symbol, None)
+                        closed_signals.append(advanced)
+                        state["closed_signals"] = closed_signals[-500:]
+                        save_state(state_path, state)
+                elif not dry_run and advanced != open_signal:
+                    open_signals[symbol] = advanced
+                    save_state(state_path, state)
+                continue
+
+            if not in_entry_window(now) or key in sent:
+                continue
+
             raw = fetch_symbol_candles(fyers, symbol, now.date())
             bars = completed_candles(raw, now, 5)
             signal = build_orb_signal(bars, instrument, settings, now)
@@ -228,14 +283,22 @@ def run_scan(dry_run=False, now=None, watchlist_path=DEFAULT_WATCHLIST, state_pa
             if dry_run:
                 print(json.dumps(signal, default=str))
                 continue
+
+            # Deliver first, then persist: a failed Discord webhook must not silently consume a signal.
             send_discord(webhook, signal)
-            sent[key] = {"sent_at": now.isoformat(), "side": signal["side"], "entry": signal["entry"]}
+            signal["last_checked_timestamp"] = signal["signal_timestamp"]
+            signal["status"] = "OPEN"
+            sent[key] = {
+                "sent_at": now.isoformat(),
+                "side": signal["side"],
+                "entry": signal["entry"],
+            }
+            open_signals[symbol] = signal
             save_state(state_path, state)
             print(f"Discord alert sent: {symbol} {signal['side']}")
         except Exception as exc:  # isolate one bad symbol; keep scanning the rest
             print(f"ERROR {symbol}: {type(exc).__name__}: {exc}")
     return emitted
-
 
 def main():
     parser = argparse.ArgumentParser(description="India intraday ORB signal scanner (alerts only)")
