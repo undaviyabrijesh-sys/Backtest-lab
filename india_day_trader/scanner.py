@@ -80,7 +80,7 @@ def build_orb_signal(candles, instrument, settings, now=None):
     max_age = int(settings.get("max_signal_age_minutes", 10))
     lookback = int(settings.get("signal_lookback_bars", 2))
 
-    # A 10-minute GitHub Actions cadence can observe the preceding completed bar too.
+    # A 15-minute GitHub Actions cadence can observe the preceding completed bar too.
     for idx in reversed(post_open.index[-lookback:]):
         bar = df.iloc[idx]
         bar_close_time = bar["datetime"] + pd.Timedelta(minutes=5)
