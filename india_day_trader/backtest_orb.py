@@ -82,7 +82,7 @@ def _exit_trade(session, rows, start_idx, side, entry, stop, target,
     )
     direction = 1.0 if side == "long" else -1.0
     gross_points = (exit_price - entry) * direction
-    slippage_points = (entry - fill_entry) * direction + (fill_exit - exit_price) * direction
+    slippage_points = (fill_entry - entry) * direction + (exit_price - fill_exit) * direction
     transaction_cost_points = (abs(fill_entry) + abs(fill_exit)) * float(cost_bps_per_side) / 10000.0
     net_points = gross_points - slippage_points - transaction_cost_points
     initial_risk = abs(entry - stop)
