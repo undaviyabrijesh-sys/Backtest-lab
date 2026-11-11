@@ -1,0 +1,30 @@
+name: India Day Trader — CI
+
+on:
+  pull_request:
+    paths:
+      - "india_day_trader/**"
+      - "tests/test_india_day_trader.py"
+      - ".github/workflows/india-day-trader-*.yml"
+      - "requirements.txt"
+  push:
+    branches: ["india-day-trader"]
+    paths:
+      - "india_day_trader/**"
+      - "tests/test_india_day_trader.py"
+      - ".github/workflows/india-day-trader-*.yml"
+      - "requirements.txt"
+
+permissions:
+  contents: read
+
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
