@@ -127,7 +127,7 @@ def run_backtest(candles, rr=2.0, cost_bps_per_side=10.0,
     for session, day in df.groupby("session", sort=True):
         day = day.reset_index(drop=True)
         local_time = day["datetime"].dt.time
-        opening_end_minutes = 15 + int(opening_range_minutes)
+        opening_end_minutes = 9 * 60 + 15 + int(opening_range_minutes)
         end_hour, end_minute = divmod(opening_end_minutes, 60)
         from datetime import time
         opening = day[(local_time >= time(9, 15)) &
