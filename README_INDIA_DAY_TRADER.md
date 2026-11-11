@@ -64,3 +64,10 @@ The ORB backtester is available as `python -m india_day_trader.backtest_orb --in
 Run a declared 36-variant grid using `python -m india_day_trader.research_matrix --input data/NSE_RELIANCE-EQ_5.csv`. The grid varies target RR (1R, 1.5R, 2R, 3R), EMA period (9, 20, 50) and filter mode (EMA only, VWAP, VWAP + relative volume). It uses an earliest-70% / latest-30% chronological split and ranks variants by later out-of-sample results. A variant is only flagged for review when it has at least 20 out-of-sample trades, positive expectancy and profit factor above 1.0. This flag is not a strategy approval.
 
 The default 10 bps per-side cost and 2 bps per-side slippage are generic research assumptions, not a verified FYERS tariff. Configure them using the real instrument, turnover, exchange, statutory charges and broker plan before interpreting results. These tools backtest the underlying OHLC series; index underlying point P&L is not option-premium P&L. Option strategies need contract selection, expiry, spread, lot size, premium data and execution modelling separately.
+
+
+## Discord signal outcome tracking
+
+After a signal alert is delivered, its reference setup is kept in `.cache/india_trader_alert_state.json`. Each scheduled run checks only newly completed 5-minute candles after the signal candle. It posts a Discord status message when the reference stop or target is touched, or when the position is flattened at the configured `force_flat_time` (default 15:20 IST). If both stop and target are touched in the same candle, stop is counted first. A signal still marked open when a new session begins is reported as an unresolved data gap rather than inventing an exit.
+
+This is OHLC-based paper tracking, not broker order tracking. The initial entry uses the breakout confirmation candle close as a reference. Your actual fill can differ, especially because GitHub Actions may be delayed. Status P&L is before brokerage, taxes, slippage and actual-fill reconciliation. Do not use it as an account statement.
