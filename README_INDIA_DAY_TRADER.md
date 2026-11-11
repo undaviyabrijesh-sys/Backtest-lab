@@ -40,7 +40,7 @@ On Windows PowerShell, use $env:FYERS_CLIENT_ID="..." etc. A local .env file is 
 
 ## GitHub Actions
 
-The workflow .github/workflows/india-day-trader-alerts.yml has a manual trigger for testing and a weekday 5-minute schedule in UTC. The scanner itself only evaluates entries between 09:45 and 14:45 IST. GitHub scheduled workflows run only from the repository's default branch; while this work remains on the development branch, use Actions -> India Day Trader — Discord Alerts -> Run workflow to test it. After tests and secret setup are verified, merge the development branch into the default branch to activate the schedule.
+The workflow .github/workflows/india-day-trader-alerts.yml has a manual trigger and a weekday 5-minute schedule in UTC. The scanner itself only evaluates entries between 09:45 and 14:45 IST. GitHub only runs scheduled workflows from the default branch, and the manual Run workflow button also requires the workflow to exist on the default branch. While this work remains on the development branch, the pull-request CI workflow runs the offline tests; after tests and secrets are verified, merge the development branch into the default branch to activate manual and scheduled alert runs.
 
 GitHub-hosted schedules are best-effort and can be delayed. Do not treat them as a low-latency execution feed. The workflow caches the de-duplication state between runs to avoid repeated alerts for the same symbol on the same trading date.
 
