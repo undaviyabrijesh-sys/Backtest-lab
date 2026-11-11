@@ -1,0 +1,59 @@
+name: India Day Trader — Discord Alerts
+
+on:
+  workflow_dispatch:
+  schedule:
+    # GitHub cron is UTC. The scanner itself gates entries to 09:45–14:45 IST.
+    - cron: "*/5 4-9 * * 1-5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: india-day-trader-alerts
+  cancel-in-progress: false
+
+jobs:
+  scan-and-alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Restore alert de-duplication state
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/india_trader_alert_state.json
+          key: india-trader-alert-state-${{ github.run_id }}
+          restore-keys: |
+            india-trader-alert-state-
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run automated tests
+        run: python -m pytest -q
+      - name: Check required secrets
+        env:
+          FYERS_CLIENT_ID: ${{ secrets.FYERS_CLIENT_ID }}
+          FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          test -n "$FYERS_CLIENT_ID" || { echo "Missing FYERS_CLIENT_ID secret"; exit 1; }
+          test -n "$FYERS_ACCESS_TOKEN" || { echo "Missing FYERS_ACCESS_TOKEN secret"; exit 1; }
+          test -n "$DISCORD_WEBHOOK_URL" || { echo "Missing DISCORD_WEBHOOK_URL secret"; exit 1; }
+      - name: Scan the configured NSE/BSE watchlist and send Discord alerts
+        env:
+          FYERS_CLIENT_ID: ${{ secrets.FYERS_CLIENT_ID }}
+          FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          INDIA_TRADER_STATE_PATH: .cache/india_trader_alert_state.json
+        run: python -m india_day_trader.scanner
+      - name: Save alert de-duplication state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/india_trader_alert_state.json
+          key: india-trader-alert-state-${{ github.run_id }}
