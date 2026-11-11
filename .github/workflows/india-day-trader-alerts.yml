@@ -44,6 +44,10 @@ jobs:
           test -n "$FYERS_CLIENT_ID" || { echo "Missing FYERS_CLIENT_ID secret"; exit 1; }
           test -n "$FYERS_ACCESS_TOKEN" || { echo "Missing FYERS_ACCESS_TOKEN secret"; exit 1; }
           test -n "$DISCORD_WEBHOOK_URL" || { echo "Missing DISCORD_WEBHOOK_URL secret"; exit 1; }
+      - name: Initialize alert state
+        run: |
+          mkdir -p .cache
+          test -f .cache/india_trader_alert_state.json || printf '{"sent":{}}\n' > .cache/india_trader_alert_state.json
       - name: Scan the configured NSE/BSE watchlist and send Discord alerts
         env:
           FYERS_CLIENT_ID: ${{ secrets.FYERS_CLIENT_ID }}
