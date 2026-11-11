@@ -22,7 +22,7 @@ This MVP is alert-only. It does not place, modify or cancel broker orders. The e
 In this repository go to Settings -> Secrets and variables -> Actions -> New repository secret and add:
 
 - FYERS_CLIENT_ID — FYERS app ID (not the trading login ID).
-- FYERS_ACCESS_TOKEN — current FYERS v3 access token. Refresh it when it expires; do not commit it or paste it in chat.
+- FYERS_ACCESS_TOKEN — current FYERS v3 access token. FYERS documents that individual-app tokens expire daily at 6:30 AM IST; generate a new token after 6:30 AM on each trading day and update this GitHub secret. Do not commit it or paste it in chat.
 - DISCORD_WEBHOOK_URL — webhook URL for the Discord channel where alerts should appear. Keep it private.
 
 The existing requirements.txt already contains FYERS, pandas, dotenv and pytest dependencies.
