@@ -8,6 +8,7 @@
     "min_total_bars": 8,
     "signal_lookback_bars": 2,
     "max_signal_age_minutes": 10,
+    "force_flat_time": "15:20",
     "ema_period": 20,
     "min_relative_volume": 1.25,
     "volume_lookback": 20,
