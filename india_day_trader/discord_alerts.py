@@ -17,13 +17,14 @@ def format_alert(signal):
         {"name": "Target", "value": f"{signal['target']:.2f} ({signal['rr']:.1f}R)", "inline": True},
         {"name": "Risk / share", "value": f"{signal['risk_points']:.2f}", "inline": True},
         {"name": "Indicative quantity", "value": qty_text, "inline": False},
-        {"name": "Confirmation candle", "value": signal["candle_time"], "inline": False},
+        {"name": "Confirmation candle", "value": signal["candle_time"], "inline": True},
+        {"name": "Alert delay", "value": f"{signal.get('signal_age_minutes', 0):.1f} min after candle close", "inline": True},
     ]
     return {
         "embeds": [{
             "title": f"🇮🇳 INTRADAY SIGNAL — {signal['name']} — {side}",
             "description": (
-                "Paper/research alert only. Entry is the last completed 5-minute candle close, "
+                "Paper/research alert only. Entry is the breakout confirmation candle close, "
                 "not a guaranteed fill. Verify live price, liquidity, charges and slippage before acting. "
                 "No order has been placed."
             ),
