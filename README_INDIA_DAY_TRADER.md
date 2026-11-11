@@ -66,3 +66,10 @@ The default 10 bps per-side cost and 2 bps per-side slippage are generic researc
 After a signal alert is delivered, its reference setup is kept in `.cache/india_trader_alert_state.json`. Each scheduled run checks only newly completed 5-minute candles after the signal candle. It posts a Discord status message when the reference stop or target is touched, or when the position is flattened at the configured `force_flat_time` (default 15:20 IST). If both stop and target are touched in the same candle, stop is counted first. A signal still marked open when a new session begins is reported as an unresolved data gap rather than inventing an exit.
 
 This is OHLC-based paper tracking, not broker order tracking. The initial entry uses the breakout confirmation candle close as a reference. Your actual fill can differ, especially because GitHub Actions may be delayed. Status P&L is before brokerage, taxes, slippage and actual-fill reconciliation. Do not use it as an account statement.
+
+
+## Experimental PDH/PDL liquidity-sweep strategy
+
+A second, research-only strategy is available as `india_day_trader.pdh_pdl_sweep`. It uses the prior completed session's high and low, detects a 5-minute sweep that closes back inside the prior-day level, and requires the following candle to break the sweep candle's opposite edge before entry. It shares the conservative stop-first same-candle handling and cost/slippage model with the ORB backtester.
+
+This module is not wired into the live scanner or Discord signal stream. Run tests and historical replay first; do not promote it to live alerts based on synthetic fixtures. Use at least six to twelve months of clean 5-minute data and separate in-sample/out-of-sample sessions before judging it.
