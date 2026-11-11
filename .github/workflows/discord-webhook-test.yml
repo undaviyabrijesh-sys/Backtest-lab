@@ -1,0 +1,58 @@
+name: Discord Webhook Connection Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-discord:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Verify Discord webhook secret is configured
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "::error::Missing DISCORD_WEBHOOK_URL repository Actions secret."
+            exit 1
+          fi
+          python - <<'PY'
+          import json
+          import os
+          from urllib.request import Request, urlopen
+          from urllib.error import HTTPError, URLError
+
+          url = os.environ["DISCORD_WEBHOOK_URL"]
+          payload = {
+              "embeds": [{
+                  "title": "✅ India Day Trader — Discord connection test",
+                  "description": (
+                      "This is a connectivity test only. No market data was requested, "
+                      "no trading signal was generated, and no order was placed. "
+                      "FYERS is not required for this test."
+                  ),
+                  "color": 5763719,
+                  "footer": {"text": "India Day Trader • Webhook test • Not a trade alert"}
+              }]
+          }
+          request = Request(
+              url,
+              data=json.dumps(payload).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          try:
+              with urlopen(request, timeout=15) as response:
+                  if not 200 <= response.status < 300:
+                      raise SystemExit(f"Discord returned HTTP {response.status}")
+                  print(f"Discord webhook delivery succeeded (HTTP {response.status}).")
+          except HTTPError as exc:
+              print(f"Discord rejected the webhook (HTTP {exc.code}).")
+              raise SystemExit(1)
+          except URLError as exc:
+              print(f"Could not reach Discord: {exc.reason}")
+              raise SystemExit(1)
+          PY
