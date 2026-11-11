@@ -39,7 +39,7 @@ def completed_candles(raw_candles, now, interval_minutes=5):
 
 
 def build_orb_signal(candles, instrument, settings, now=None):
-    """Return one ORB signal from completed bars, otherwise None."""
+    """Return the newest recent ORB signal from completed bars, otherwise None."""
     if candles is None or candles.empty:
         return None
     now = (now or datetime.now(IST)).astimezone(IST)
@@ -65,81 +65,89 @@ def build_orb_signal(candles, instrument, settings, now=None):
     post_open = df[clock >= opening_range_end]
     if len(opening) < int(settings.get("opening_range_bars", 3)):
         return None
-    if len(df) < int(settings.get("min_total_bars", 8)) or len(post_open) < 1:
+    if len(df) < int(settings.get("min_total_bars", 8)) or post_open.empty:
         return None
 
     or_high = float(opening["high"].max())
     or_low = float(opening["low"].min())
-    bar = post_open.iloc[-1]
-    prev = df.iloc[-2] if len(df) >= 2 else None
-    if prev is None:
-        return None
-
     period = int(settings.get("ema_period", 20))
-    ema = float(df["close"].ewm(span=period, adjust=False).mean().iloc[-1])
+    ema_series = df["close"].ewm(span=period, adjust=False).mean()
     use_vwap = bool(instrument.get("use_vwap", instrument.get("segment") == "equity"))
     use_volume = bool(instrument.get("use_volume", instrument.get("segment") == "equity"))
-    vwap = None
-    if use_vwap:
-        volume_sum = float(df["volume"].clip(lower=0).sum())
-        if volume_sum <= 0:
-            return None
-        typical = (df["high"] + df["low"] + df["close"]) / 3.0
-        vwap = float((typical * df["volume"].clip(lower=0)).sum() / volume_sum)
-
-    volume_multiple = None
-    if use_volume:
-        prior_volumes = df.iloc[:-1]["volume"].tail(int(settings.get("volume_lookback", 20)))
-        baseline = float(prior_volumes.median()) if not prior_volumes.empty else 0.0
-        current_volume = float(bar["volume"])
-        if baseline <= 0:
-            return None
-        volume_multiple = current_volume / baseline
-        if volume_multiple < float(settings.get("min_relative_volume", 1.25)):
-            return None
-
-    crossed_up = float(prev["close"]) <= or_high and float(bar["close"]) > or_high
-    crossed_down = float(prev["close"]) >= or_low and float(bar["close"]) < or_low
     rr = float(settings.get("target_rr", 2.0))
-    candidates = []
-    if crossed_up and float(bar["close"]) > ema and (vwap is None or float(bar["close"]) > vwap):
-        candidates.append(("long", float(bar["close"]), float(bar["low"])))
-    if crossed_down and float(bar["close"]) < ema and (vwap is None or float(bar["close"]) < vwap):
-        candidates.append(("short", float(bar["close"]), float(bar["high"])))
-    if not candidates:
-        return None
-
-    side, entry, stop = candidates[0]
-    plan = plan_trade(side, entry, stop, rr)
-    if not plan:
-        return None
     max_stop_pct = float(settings.get("max_stop_pct", 2.0))
-    if plan["risk_points"] / entry * 100.0 > max_stop_pct:
-        return None
+    max_age = int(settings.get("max_signal_age_minutes", 10))
+    lookback = int(settings.get("signal_lookback_bars", 2))
 
-    capital = settings.get("account_capital_inr")
-    qty = None
-    if instrument.get("segment") == "equity" and capital:
-        qty = position_size(entry, stop, capital,
-                            settings.get("risk_per_trade_pct", 0.5),
-                            settings.get("max_exposure_pct", 20.0))
+    # A 10-minute GitHub Actions cadence can observe the preceding completed bar too.
+    for idx in reversed(post_open.index[-lookback:]):
+        bar = df.iloc[idx]
+        bar_close_time = bar["datetime"] + pd.Timedelta(minutes=5)
+        if now - bar_close_time > pd.Timedelta(minutes=max_age):
+            continue
+        if idx <= 0:
+            continue
+        prev = df.iloc[idx - 1]
+        ema = float(ema_series.iloc[idx])
+        vwap = None
+        if use_vwap:
+            prefix = df.iloc[:idx + 1]
+            volume_sum = float(prefix["volume"].clip(lower=0).sum())
+            if volume_sum <= 0:
+                continue
+            typical = (prefix["high"] + prefix["low"] + prefix["close"]) / 3.0
+            vwap = float((typical * prefix["volume"].clip(lower=0)).sum() / volume_sum)
 
-    return {
-        "symbol": instrument["symbol"],
-        "name": instrument.get("name", instrument["symbol"]),
-        "segment": instrument.get("segment", "equity"),
-        **plan,
-        "quantity": qty,
-        "or_high": or_high,
-        "or_low": or_low,
-        "ema": ema,
-        "vwap": vwap,
-        "relative_volume": volume_multiple,
-        "candle_time": bar["datetime"].strftime("%Y-%m-%d %H:%M %Z"),
-        "signal_date": now.date().isoformat(),
-        "strategy": "orb_15m_5m_v1",
-    }
+        volume_multiple = None
+        if use_volume:
+            prior_volumes = df.iloc[:idx]["volume"].tail(int(settings.get("volume_lookback", 20)))
+            baseline = float(prior_volumes.median()) if not prior_volumes.empty else 0.0
+            current_volume = float(bar["volume"])
+            if baseline <= 0:
+                continue
+            volume_multiple = current_volume / baseline
+            if volume_multiple < float(settings.get("min_relative_volume", 1.25)):
+                continue
 
+        crossed_up = float(prev["close"]) <= or_high and float(bar["close"]) > or_high
+        crossed_down = float(prev["close"]) >= or_low and float(bar["close"]) < or_low
+        candidates = []
+        if crossed_up and float(bar["close"]) > ema and (vwap is None or float(bar["close"]) > vwap):
+            candidates.append(("long", float(bar["close"]), float(bar["low"])))
+        if crossed_down and float(bar["close"]) < ema and (vwap is None or float(bar["close"]) < vwap):
+            candidates.append(("short", float(bar["close"]), float(bar["high"])))
+        if not candidates:
+            continue
+
+        side, entry, stop = candidates[0]
+        plan = plan_trade(side, entry, stop, rr)
+        if not plan or plan["risk_points"] / entry * 100.0 > max_stop_pct:
+            continue
+
+        capital = settings.get("account_capital_inr")
+        qty = None
+        if instrument.get("segment") == "equity" and capital:
+            qty = position_size(entry, stop, capital,
+                                settings.get("risk_per_trade_pct", 0.5),
+                                settings.get("max_exposure_pct", 20.0))
+
+        return {
+            "symbol": instrument["symbol"],
+            "name": instrument.get("name", instrument["symbol"]),
+            "segment": instrument.get("segment", "equity"),
+            **plan,
+            "quantity": qty,
+            "or_high": or_high,
+            "or_low": or_low,
+            "ema": ema,
+            "vwap": vwap,
+            "relative_volume": volume_multiple,
+            "candle_time": bar["datetime"].strftime("%Y-%m-%d %H:%M %Z"),
+            "signal_age_minutes": round((now - bar_close_time).total_seconds() / 60.0, 1),
+            "signal_date": now.date().isoformat(),
+            "strategy": "orb_15m_5m_v1",
+        }
+    return None
 
 def fetch_symbol_candles(fyers, symbol, today):
     response = fyers.history(data={
