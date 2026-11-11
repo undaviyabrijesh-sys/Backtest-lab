@@ -63,7 +63,7 @@ The default 10 bps per-side cost and 2 bps per-side slippage are generic researc
 
 ## Discord signal outcome tracking
 
-After a signal alert is delivered, its reference setup is kept in `.cache/india_trader_alert_state.json`. Each scheduled run checks only newly completed 5-minute candles after the signal candle. It posts a Discord status message when the reference stop or target is touched, or when the position is flattened at the configured `force_flat_time` (default 15:20 IST). If both stop and target are touched in the same candle, stop is counted first. A signal still marked open when a new session begins is reported as an unresolved data gap rather than inventing an exit.
+After a signal alert is delivered, its reference setup is kept in `.cache/india_trader_alert_state.json`. Each scheduled run checks only newly completed 5-minute candles after the signal candle. It posts a Discord status message when the reference stop or target is touched, or when the position is flattened at the configured `force_flat_time` (default 15:20 IST); monitoring accepts delayed workflow starts until 16:00 IST. If both stop and target are touched in the same candle, stop is counted first. A signal still marked open when a new session begins is reported as an unresolved data gap rather than inventing an exit.
 
 This is OHLC-based paper tracking, not broker order tracking. The initial entry uses the breakout confirmation candle close as a reference. Your actual fill can differ, especially because GitHub Actions may be delayed. Status P&L is before brokerage, taxes, slippage and actual-fill reconciliation. Do not use it as an account statement.
 
