@@ -8,6 +8,8 @@ on:
       - "tests/test_backtest_orb.py"
       - "tests/test_research_matrix.py"
       - "tests/test_tracker.py"
+      - "tests/test_discord_alerts.py"
+      - "india_day_trader/discord_alerts.py"
       - "india_day_trader/research_matrix.py"
       - "india_day_trader/backtest_orb.py"
       - "backtest.py"
