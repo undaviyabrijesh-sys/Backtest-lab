@@ -4,7 +4,8 @@ on:
   workflow_dispatch:
   schedule:
     # GitHub cron is UTC. The scanner itself gates entries to 09:45–14:45 IST.
-    - cron: "*/15 4-10 * * 1-5"
+    - cron: "*/15 4-9 * * 1-5"
+    - cron: "0 10 * * 1-5"
 
 permissions:
   contents: read
@@ -31,6 +32,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Run automated tests
