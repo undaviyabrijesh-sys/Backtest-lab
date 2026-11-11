@@ -32,7 +32,9 @@ def run_backtest(candles, rr=2.0):
                 trades.append(position)
                 position = None
             continue
-        if last_bar or pd.isna(bar["prev_high"]):
+        # The final bar may still trigger a trade; any position left open is
+        # closed at that bar's close in the end-of-data block below.
+        if pd.isna(bar["prev_high"]):
             continue
         # Only the next bar after a signal can trigger.
         if i == 0 or df.iloc[i-1]["session"] != bar["session"]:
