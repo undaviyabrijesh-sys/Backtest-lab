@@ -142,7 +142,7 @@ def build_orb_signal(candles, instrument, settings, now=None):
 
 
 def fetch_symbol_candles(fyers, symbol, today):
-    response = fyers.history({
+    response = fyers.history(data={
         "symbol": symbol,
         "resolution": "5",
         "date_format": "1",
