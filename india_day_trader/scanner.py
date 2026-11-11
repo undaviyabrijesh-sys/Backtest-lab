@@ -29,7 +29,7 @@ def load_watchlist(path=DEFAULT_WATCHLIST):
 
 
 def completed_candles(raw_candles, now, interval_minutes=5):
-    """Convert FYERS epoch candles to IST and discard any still-forming candle."""
+    """Convert epoch candles to IST and discard any still-forming candle."""
     if not raw_candles:
         return pd.DataFrame(columns=["datetime", "open", "high", "low", "close", "volume"])
     df = pd.DataFrame(raw_candles, columns=["timestamp", "open", "high", "low", "close", "volume"])
