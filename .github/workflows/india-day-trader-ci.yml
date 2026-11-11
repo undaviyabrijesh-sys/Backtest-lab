@@ -9,6 +9,7 @@ on:
       - "tests/test_research_matrix.py"
       - "tests/test_tracker.py"
       - "tests/test_discord_alerts.py"
+      - "tests/test_fyers_auth.py"
       - "india_day_trader/discord_alerts.py"
       - "india_day_trader/research_matrix.py"
       - "india_day_trader/backtest_orb.py"
