@@ -5,6 +5,8 @@ on:
     paths:
       - "india_day_trader/**"
       - "tests/test_india_day_trader.py"
+      - "tests/test_backtest_orb.py"
+      - "india_day_trader/backtest_orb.py"
       - "backtest.py"
       - ".github/workflows/india-day-trader-*.yml"
       - "requirements.txt"
