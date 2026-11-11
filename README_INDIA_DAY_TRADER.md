@@ -55,3 +55,12 @@ Edit india_day_trader/watchlist.json to enable/disable instruments and tune the 
 3. Add replay results and an auditable trade journal.
 4. Add additional setups only as separate experimental strategies (PDH/PDL, VWAP reclaim, CRT, liquidity sweep and Fibonacci) and validate each independently.
 5. Add NIFTY/Bank NIFTY/SENSEX options only after underlying signals and option-chain/contract selection are validated.
+
+
+## Historical ORB research
+
+The ORB backtester is available as `python -m india_day_trader.backtest_orb --input data/NSE_RELIANCE-EQ_5.csv`. It enters at the next 5-minute candle open after the close-confirmed breakout, uses the sweep/confirmation candle extreme for the stop, assumes stop-first if stop and target are both touched in one candle, and closes any open trade at the final session candle. It reports gross/net points, estimated slippage and all-in transaction-cost assumptions, R multiples, profit factor, drawdown, monthly P&L and consecutive losses.
+
+Run a declared 36-variant grid using `python -m india_day_trader.research_matrix --input data/NSE_RELIANCE-EQ_5.csv`. The grid varies target RR (1R, 1.5R, 2R, 3R), EMA period (9, 20, 50) and filter mode (EMA only, VWAP, VWAP + relative volume). It uses an earliest-70% / latest-30% chronological split and ranks variants by later out-of-sample results. A variant is only flagged for review when it has at least 20 out-of-sample trades, positive expectancy and profit factor above 1.0. This flag is not a strategy approval.
+
+The default 10 bps per-side cost and 2 bps per-side slippage are generic research assumptions, not a verified FYERS tariff. Configure them using the real instrument, turnover, exchange, statutory charges and broker plan before interpreting results. These tools backtest the underlying OHLC series; index underlying point P&L is not option-premium P&L. Option strategies need contract selection, expiry, spread, lot size, premium data and execution modelling separately.
