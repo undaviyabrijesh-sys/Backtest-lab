@@ -1,11 +1,11 @@
-# India Day Trader — FYERS + Discord (research / alerting MVP)
+# India Day Trader — Yahoo Finance + Discord (research / alerting MVP)
 
 This is a first India-market adaptation inspired by the modular workflow in Jakeschincariol/day-trader-skill (MIT). It is being developed in this repository's india-day-trader branch so the existing main branch and historical backtester remain unchanged.
 
 ## What is implemented in v1
 
 - NSE/BSE watchlist: NIFTY 50, NIFTY BANK, SENSEX and a starter set of liquid NSE equities.
-- 5-minute candles from FYERS v3, processed in Asia/Kolkata time.
+- 5-minute candles from Yahoo Finance via yfinance, processed in Asia/Kolkata time. Yahoo is unofficial, best-effort and may be delayed or incomplete.
 - 15-minute opening range (09:15–09:30) breakout confirmation on a fully closed 5-minute candle.
 - EMA trend filter; VWAP and relative-volume filters for equities (disabled for index symbols where volume/VWAP may be unsuitable).
 - Indicative stop from the confirmation candle extreme and 2R target.
@@ -19,19 +19,18 @@ This MVP is alert-only. It does not place, modify or cancel broker orders. The e
 
 ## Required GitHub Actions secrets
 
-In this repository go to Settings -> Secrets and variables -> Actions -> New repository secret and add:
+Only one repository Actions secret is required for the Yahoo Finance alert workflow:
 
-- `FYERS_CLIENT_ID` — FYERS app ID (not the trading login ID).
-- `FYERS_SECRET_KEY` — the app secret from your FYERS API dashboard.
-- `FYERS_REFRESH_TOKEN` — the refresh token returned by the first FYERS auth-code exchange. The `auth.py exchange` command now saves it locally as `.fyers_refresh_token`; copy its value into this GitHub secret without sharing it in chat.
-- `FYERS_PIN` — your FYERS trading PIN. Store it only as a GitHub Actions secret; never put it in code or a committed file.
 - `DISCORD_WEBHOOK_URL` — webhook URL for the Discord channel where alerts should appear. Keep it private.
 
-The alert workflow prefers the refresh-token flow to generate a fresh daily access token. FYERS says access tokens expire daily at 6:30 AM IST and its refresh tokens remain valid for 15 days. After the refresh token expires, repeat the browser authorization flow and replace the `FYERS_REFRESH_TOKEN` secret. A manually renewed `FYERS_ACCESS_TOKEN` secret is supported as a fallback, but it must be refreshed after 6:30 AM IST every trading day.
+Yahoo Finance does not require a broker login or API key. The scanner defaults to `MARKET_DATA_SOURCE=yahoo`; it no longer requires FYERS client IDs, tokens, app secrets or PINs. Do not add FYERS credentials for this workflow.
 
-For local token refresh, put the client ID, app secret, refresh token and PIN in your untracked local `.env` file, then run `python -m india_day_trader.fyers_auth`. The refreshed access token is written to the ignored `.fyers_access_token` file. Never commit either token file.
+## Yahoo Finance data limitations
 
-The existing requirements.txt already contains FYERS, pandas, dotenv and pytest dependencies.
+- NSE equities use Yahoo symbols such as `RELIANCE.NS`; BSE equities use `.BO`. NIFTY 50, NIFTY BANK and SENSEX use Yahoo index symbols.
+- The adapter requests 5-minute candles for the current session and discards bars that have not fully closed.
+- Yahoo's intraday history is limited (5-minute data is generally available for up to about 60 days), and requests can be rate-limited or return gaps. See the `yfinance` history documentation: https://ranaroussi.github.io/yfinance/reference/yfinance.price_history.html
+- Yahoo Finance is not an official exchange feed or broker API. Data may be delayed, missing, adjusted or revised and has no execution-grade SLA. These alerts are for research and paper monitoring only; verify prices independently. Do not use them for automated/live order execution.
 
 ## GitHub Actions
 
@@ -45,7 +44,7 @@ Edit india_day_trader/watchlist.json to enable/disable instruments and tune the 
 
 ## Next validation stages
 
-1. Verify FYERS symbol names and live candle coverage for every enabled symbol.
+1. Verify Yahoo symbol mapping and candle coverage for every enabled symbol; compare sample candles against a broker/exchange source before relying on the feed.
 2. Backtest ORB variants on historical 5-minute data with realistic transaction costs and same-bar stop/target ambiguity handled conservatively.
 3. Add replay results and an auditable trade journal.
 4. Add additional setups only as separate experimental strategies (PDH/PDL, VWAP reclaim, CRT, liquidity sweep and Fibonacci) and validate each independently.
@@ -77,6 +76,6 @@ This module is not wired into the live scanner or Discord signal stream. Run tes
 
 ## Run a real historical research job
 
-After the PR is merged and FYERS authentication secrets are configured, open Actions -> **India Day Trader — Historical Research** -> Run workflow. Choose an exchange symbol, start/end dates, and effective per-side cost/slippage assumptions. The workflow downloads 5-minute candles directly from FYERS, runs the cost-aware ORB backtest, the 36-variant chronological research matrix, and the PDH/PDL sweep-reversal backtest. It uploads the candle file, trade ledgers and JSON summaries as a 90-day artifact; it does not commit market data to Git.
+The historical research workflow currently remains FYERS-based and is not usable until a supported data credential is configured. The live alert scanner is switched to Yahoo Finance; this does not automatically convert the historical research downloader. It uploads the candle file, trade ledgers and JSON summaries as a 90-day artifact; it does not commit market data to Git.
 
 Start with one highly liquid cash-equity symbol such as `NSE:RELIANCE-EQ`. For index symbols, the output is in underlying index points and is not equivalent to futures or option-premium P&L. Use instrument-appropriate transaction-cost assumptions. The job requires at least two distinct sessions for the out-of-sample matrix. FYERS history coverage is account-plan and symbol dependent.
