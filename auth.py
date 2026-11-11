@@ -28,13 +28,19 @@ def session():
         grant_type="authorization_code",
     )
 
-def exchange(code):
+def exchange_tokens(code):
     s = session()
     s.set_token(code)
     result = s.generate_token()
     token = result.get("access_token") if isinstance(result, dict) else None
+    refresh = result.get("refresh_token") if isinstance(result, dict) else None
     if not token:
         raise SystemExit("Token exchange failed. Check auth code, redirect URI and app credentials.")
+    return token, refresh
+
+
+def exchange(code):
+    token, _ = exchange_tokens(code)
     return token
 
 def main():
@@ -62,10 +68,13 @@ def main():
     code = parse_qs(urlparse(value).query).get("auth_code", [value])[0]
     if not code:
         raise SystemExit("No auth_code found.")
-    token = exchange(code)
+    token, refresh = exchange_tokens(code)
     with open(".fyers_access_token", "w", encoding="utf-8") as f:
         f.write(token)
-    print("FYERS access token generated. Token value intentionally hidden.")
+    if refresh:
+        with open(".fyers_refresh_token", "w", encoding="utf-8") as f:
+            f.write(refresh)
+    print("FYERS access token generated. Token values intentionally hidden.")
 
 if __name__ == "__main__":
     main()
