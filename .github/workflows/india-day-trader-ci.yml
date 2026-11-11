@@ -16,14 +16,6 @@ on:
       - "backtest.py"
       - ".github/workflows/india-day-trader-*.yml"
       - "requirements.txt"
-  push:
-    branches: ["india-day-trader"]
-    paths:
-      - "india_day_trader/**"
-      - "tests/test_india_day_trader.py"
-      - ".github/workflows/india-day-trader-*.yml"
-      - "requirements.txt"
-
 permissions:
   contents: read
 
