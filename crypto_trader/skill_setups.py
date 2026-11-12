@@ -67,8 +67,8 @@ def scan_daily_setups(candles: pd.DataFrame, symbol: str) -> list[dict]:
     if len(prior_20) == 20 and c > float(prior_20.max()):
         setups.append("breakout_20d")
 
-    impulse = close.iloc[last - 15:last - 5]
-    consolidation = close.iloc[last - 5:last]
+    impulse = close.iloc[last - 14:last - 4]
+    consolidation = close.iloc[last - 4:last + 1]
     if len(impulse) == 10 and len(consolidation) == 5:
         impulse_return = float(impulse.iloc[-1] / impulse.iloc[0] - 1)
         consolidation_range = float(
