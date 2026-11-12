@@ -27,9 +27,8 @@ def test_breakout_20d_detected():
 
 def test_bull_flag_detected():
     closes = [100.0] * 70
-    closes += [100, 102, 104, 106, 108, 110, 112, 114, 116, 112]
-    closes += [111, 112, 111.5, 112.2, 111.8]
-    closes += [112.0]
+    closes += [100, 102, 104, 106, 108, 110, 112, 114, 116, 118]
+    closes += [117, 118, 117.5, 118.2, 117.8]
     hits = scan_daily_setups(frame(closes), "ETHUSDT")
     assert "bull_flag" in {x["setup"] for x in hits}
 
