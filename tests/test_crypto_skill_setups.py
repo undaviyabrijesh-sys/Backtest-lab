@@ -43,3 +43,11 @@ def test_bad_prices_rejected():
     data.loc[0, "close"] = -1
     with pytest.raises(ValueError):
         scan_daily_setups(data, "BTCUSDT")
+
+
+def test_bull_flag_range_includes_latest_completed_close():
+    closes = [100.0] * 70
+    closes += [100, 102, 104, 106, 108, 110, 112, 114, 116, 118]
+    closes += [117, 118, 117.5, 118.2, 130.0]
+    hits = scan_daily_setups(frame(closes), "BTCUSDT")
+    assert "bull_flag" not in {x["setup"] for x in hits}
