@@ -60,6 +60,25 @@ def test_invalid_prices_and_negative_volume_rejected():
         scan_daily_setups(data, "SBIN.NS")
 
 
+def test_index_symbol_is_classified_and_scanned():
+    closes = [100 + (i % 4) for i in range(79)] + [120]
+    hits = scan_daily_setups(frame(closes), "NSE:NIFTY50-INDEX")
+    assert hits
+    assert all(x["market"] == "INDIA_INDEX" for x in hits)
+    assert all(x["symbol"] == "NSE:NIFTY50-INDEX" for x in hits)
+
+
+def test_index_can_be_explicitly_classified():
+    closes = [100 + (i % 4) for i in range(79)] + [120]
+    hits = scan_daily_setups(frame(closes), "BANKNIFTY", market="INDIA_INDEX")
+    assert hits and all(x["market"] == "INDIA_INDEX" for x in hits)
+
+
+def test_invalid_market_type_rejected():
+    with pytest.raises(ValueError):
+        scan_daily_setups(frame([100 + i for i in range(40)]), "NIFTY", market="OPTIONS")
+
+
 def test_candidates_are_research_only_and_long_only():
     hits = scan_daily_setups(frame([100 + (i % 4) for i in range(79)] + [120]), "HDFCBANK.NS")
     assert hits
