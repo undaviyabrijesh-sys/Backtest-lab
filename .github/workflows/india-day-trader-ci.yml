@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "india_day_trader/**"
+      - "crypto_trader/**"
+      - "tests/test_crypto_skill_setups.py"
       - "tests/test_india_day_trader.py"
       - "tests/test_backtest_orb.py"
       - "tests/test_research_matrix.py"
