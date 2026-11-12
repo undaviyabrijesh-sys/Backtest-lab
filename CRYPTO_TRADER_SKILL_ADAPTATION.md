@@ -11,7 +11,7 @@ The source `trader-scanner` documents five daily close-based candidates:
 - RSI(14) oversold
 - oversold bounce
 
-The new `crypto_trader.skill_setups` module reimplements these as long-side research candidates using completed Binance USD-M perpetual daily candles. The scanner dynamically selects the top 10 eligible USDT-margined perpetuals by 24-hour quote volume.
+The new `crypto_trader.skill_setups` module reimplements these as long-side research candidates using completed Binance USD-M perpetual daily candles. Its bull-flag window uses the 10 closes immediately before the most recent five-bar consolidation, and the consolidation includes the latest completed daily close. The scanner dynamically selects the top 10 eligible USDT-margined perpetuals by 24-hour quote volume.
 
 ## What is deliberately not copied
 
