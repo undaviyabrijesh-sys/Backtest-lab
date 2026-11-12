@@ -1,7 +1,6 @@
-"""Daily Indian-equity setup detectors adapted from day-trader-skill.
+"""Daily Indian-equity and index setup detectors adapted from day-trader-skill.
 
-Research-only candidate detection. This module is separate from the existing
-intraday ORB/Discord alert path and never emits executable trade instructions.
+Research-only candidate detection. Separate from the intraday ORB/Discord path.
 """
 from __future__ import annotations
 
@@ -38,17 +37,25 @@ def _validated(candles: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def scan_daily_setups(candles: pd.DataFrame, symbol: str) -> list[dict]:
-    """Return long-only daily research candidates for NSE/BSE cash equities.
+def _market_type(symbol: str, market: str | None) -> str:
+    if market:
+        normalized = market.strip().upper()
+        if normalized not in {"INDIA_INDEX", "INDIA_CASH_EQUITY"}:
+            raise ValueError("market must be INDIA_INDEX or INDIA_CASH_EQUITY")
+        return normalized
+    token = symbol.upper()
+    index_markers = ("INDEX", "NIFTY", "SENSEX", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY")
+    return "INDIA_INDEX" if any(marker in token for marker in index_markers) else "INDIA_CASH_EQUITY"
 
-    * breakout_20d: latest completed close exceeds all 20 preceding closes.
-    * bull_flag: >10% 10-session impulse followed by a five-session close range
-      no wider than 5% of its mean.
-    * reclaim_ema20: previous close at/below EMA20, latest close above EMA20.
-    * oversold: Wilder RSI(14) below 30.
-    * oversold_bounce: previous RSI below 30 and latest close higher.
 
-    The lookbacks count Indian trading sessions, not calendar days. No entry,
+def scan_daily_setups(
+    candles: pd.DataFrame, symbol: str, market: str | None = None
+) -> list[dict]:
+    """Return long-only daily research candidates for Indian cash equities or indices.
+
+    Rules: latest close above 20 prior closes; >10% 10-session impulse followed
+    by five closes within a 5% range; EMA20 reclaim; Wilder RSI(14) < 30; or an
+    oversold bounce. Lookbacks count completed trading sessions. No entry,
     stop, target, quantity, leverage, or option-premium estimate is produced.
     """
     df = _validated(candles)
@@ -82,11 +89,12 @@ def scan_daily_setups(candles: pd.DataFrame, symbol: str) -> list[dict]:
     if pd.notna(previous_rsi) and float(previous_rsi) < 30 and current > previous:
         setups.append("oversold_bounce")
 
+    market_name = _market_type(symbol, market)
     return [{
         "symbol": symbol.upper(),
         "setup": setup,
         "side": "LONG",
-        "market": "INDIA_CASH_EQUITY",
+        "market": market_name,
         "timeframe": "1d",
         "as_of": str(df.iloc[last]["timestamp"]),
         "close": current,
