@@ -1,0 +1,85 @@
+name: Gold MCX daily research backfill
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'gold_mcx/**'
+      - '.github/workflows/gold-mcx-daily-research.yml'
+  push:
+    branches:
+      - gold-mcx-arbitrage-research
+    paths:
+      - 'gold_mcx/**'
+      - '.github/workflows/gold-mcx-daily-research.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gold-mcx-daily-research
+  cancel-in-progress: false
+
+jobs:
+  backfill-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: gold-mcx-arbitrage-research
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install research dependencies
+        run: python -m pip install --upgrade pandas numpy yfinance curl_cffi
+
+      - name: Run unit tests
+        run: python -m unittest discover -s gold_mcx -p 'test_*.py' -v
+
+      - name: Download official MCX daily futures data and global hourly proxies
+        run: >-
+          python gold_mcx/download_daily_sources.py
+          --start 2024-11-01
+          --end "$(date -u +%F)"
+          --out-dir data/daily
+          --delay 1.6
+          --resume
+
+      - name: Run chronological daily gap study
+        run: >-
+          python gold_mcx/daily_gap_backtest.py
+          --mcx data/daily/mcx_gold_goldm_daily.csv
+          --global data/daily/global_hourly.csv
+          --out data/results/daily_gap
+
+      - name: Upload run outputs even if later step fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gold-mcx-daily-research-${{ github.run_number }}
+          path: |
+            data/daily/
+            data/results/daily_gap/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Commit successful data and results to research branch
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/daily data/results/daily_gap
+          if git diff --cached --quiet; then
+            echo "No new data or result changes to commit."
+          else
+            git commit -m "Add MCX daily history and opening-gap backtest results"
+            git push origin HEAD:gold-mcx-arbitrage-research
+          fi
