@@ -90,9 +90,9 @@ def main():
             x = df[df.instrument == "XAUUSD"].sort_values("timestamp")
             fx = df[df.instrument == "USDINR"].sort_values("timestamp")
             x0 = last_before(x, prev.iloc[-1].timestamp)
-            x1 = first_after(x, open_ts)
+            x1 = last_before(x, open_ts)
             f0 = last_before(fx, prev.iloc[-1].timestamp)
-            f1 = first_after(fx, open_ts)
+            f1 = last_before(fx, open_ts)
             if any(v is None for v in [x0, x1, f0, f1]): continue
             xret = float(x1.close / x0.close - 1)
             fxret = float(f1.close / f0.close - 1)
