@@ -2,6 +2,11 @@ name: Gold MCX daily research backfill
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'gold_mcx/**'
+      - '.github/workflows/gold-mcx-daily-research.yml'
   push:
     branches:
       - gold-mcx-arbitrage-research
