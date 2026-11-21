@@ -4,17 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       intraday_start:
-        description: "Intraday start date (Standard plan: last 1 year; Prime: older history if entitled)"
+        description: "Intraday start date (Standard plan: rolling last 1 year)"
         required: true
-        default: "2025-11-08"
+        default: "2025-11-21"
       daily_start:
-        description: "Daily/weekly/monthly start date (Standard plan: from 2021; Prime: older history if entitled)"
+        description: "Daily/weekly/monthly start date (Standard plan: rolling last 5 years)"
         required: true
         default: "2021-01-01"
       end:
         description: "End date (YYYY-MM-DD)"
         required: true
-        default: "2026-11-07"
+        default: "2026-11-20"
 
 permissions:
   contents: read
