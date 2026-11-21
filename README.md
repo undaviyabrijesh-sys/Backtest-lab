@@ -45,3 +45,25 @@ The workflow uploads CSV files as a 90-day artifact. It does not push market dat
 ## India Day Trader (development)
 
 An India-market intraday scanner with FYERS candle data and Discord research alerts is under development on the `india-day-trader` branch. See [README_INDIA_DAY_TRADER.md](README_INDIA_DAY_TRADER.md) for setup, secrets and safety limits. This work is kept off `main` until tested.
+
+
+## FYERS Standard-plan options data (NIFTY + SENSEX)
+
+The options workflow is separate from the index downloader because expired F&O has tighter Standard-plan limits.
+
+1. Run **Actions → FYERS NIFTY & SENSEX Options Data → Run workflow** with mode `discover`. It calls FYERS expiry-date and expired-contract catalogue APIs and creates `expired_options_contract_catalogue.csv` for NIFTY and SENSEX.
+2. Download that artifact and select exact option symbols (CE/PE, expiry and strikes) into a one-column CSV named `options_symbols.csv` with header `symbol`.
+3. Run the same workflow with mode `download`, paste the selected exact symbols as a comma-separated list, choose resolution and dates, and keep `max_requests` at 10 or below.
+4. The workflow requests OHLCV plus open interest and option Greeks (where FYERS returns them), then uploads CSVs as a 90-day artifact.
+
+**Standard-plan constraints (verified against current FYERS documentation):**
+- Standard Data API: 5 requests/second, 50/minute and 5,000/day.
+- Active instrument historical candles: rolling last 1 year intraday and last 5 years daily, subject to instrument availability.
+- Expired F&O: daily history for last 2 years; only 10 expired-F&O intraday history requests per day. Each contract/date chunk consumes one request. Intraday requests are chunked to at most 100 calendar days.
+- Therefore, do not expect a complete multi-year 1-minute options database to download in one day on Standard. Prioritise representative ATM/near-ATM CE and PE contracts and build the historical set in daily batches.
+- Greeks may be null for some candles. The downloader preserves nulls; it does not forward-fill or replace them with zero.
+- Missing data is not fabricated. A valid `no_data` response is recorded as an empty result.
+
+The bulk index workflow now uses Standard-eligible candle intervals only (1m through 240m plus daily/weekly/monthly); it no longer requests seconds candles, which Standard does not include. Default index coverage is the rolling 1-year intraday window and 5-year daily window. It is a manual workflow so a refreshed FYERS access token can be supplied through GitHub Actions secrets.
+
+Required repository Actions secrets for both workflows: `FYERS_CLIENT_ID` and current `FYERS_ACCESS_TOKEN`. The local FYERS app connection in another application does not automatically populate GitHub Actions secrets. Never commit credentials or paste tokens into chat.
