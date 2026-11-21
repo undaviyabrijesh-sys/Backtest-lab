@@ -10,10 +10,10 @@ from download import fetch_history
 
 SYMBOLS = ["NSE:NIFTY50-INDEX", "BSE:SENSEX-INDEX"]
 # All standard historical candle resolutions documented by FYERS (excluding seconds).
-RESOLUTIONS = ["5S", "10S", "15S", "30S", "45S", "1", "2", "3", "5", "10", "15", "20", "30", "45", "60", "120", "180", "240", "D", "1W", "1M"]
+RESOLUTIONS = ["1", "3", "5", "10", "15", "30", "60", "120", "240", "D", "1W", "1M"]
 
 def download_one(fyers, symbol, resolution, start, end, outdir):
-    chunk_days = 30 if resolution.endswith("S") else (100 if resolution not in ("D", "1D", "1W", "1M") else 366)
+    chunk_days = 100 if resolution not in ("D", "1D", "1W", "1M") else 366
     frames = []
     # Small pause between calls; fail clearly on entitlement/auth/rate errors.
     cursor = start
@@ -38,9 +38,9 @@ def download_one(fyers, symbol, resolution, start, end, outdir):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--intraday-start", type=date.fromisoformat, required=True)
-    p.add_argument("--daily-start", type=date.fromisoformat, required=True)
-    p.add_argument("--end", type=date.fromisoformat, required=True)
+    p.add_argument("--intraday-start", type=date.fromisoformat, default=date.fromisoformat("2025-11-21"))
+    p.add_argument("--daily-start", type=date.fromisoformat, default=date.fromisoformat("2021-01-01"))
+    p.add_argument("--end", type=date.fromisoformat, default=date.today())
     p.add_argument("--outdir", default="data")
     p.add_argument("--symbols", nargs="*", default=SYMBOLS)
     p.add_argument("--resolutions", nargs="*", default=RESOLUTIONS)
