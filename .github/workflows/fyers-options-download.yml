@@ -1,0 +1,91 @@
+name: FYERS NIFTY & SENSEX Options Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "discover contracts or download selected contracts"
+        required: true
+        type: choice
+        options:
+          - discover
+          - download
+        default: discover
+      start:
+        description: "Start date (expired options Standard: daily 2 years; intraday subject to 10 requests/day)"
+        required: true
+        default: "2024-11-21"
+      end:
+        description: "End date (YYYY-MM-DD)"
+        required: true
+        default: "2026-11-20"
+      resolution:
+        description: "Candle interval: 1, 5, 15, 60, D, 1W"
+        required: true
+        default: "5"
+      option_symbols:
+        description: "Comma-separated exact FYERS option symbols for download mode; ignored in discover mode"
+        required: false
+        default: ""
+      max_requests:
+        description: "Expired F&O intraday request budget (Standard max 10/day)"
+        required: true
+        default: "10"
+
+permissions:
+  contents: read
+
+jobs:
+  options-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Verify FYERS credentials
+        env:
+          FYERS_CLIENT_ID: ${{ secrets.FYERS_CLIENT_ID }}
+          FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
+        run: |
+          test -n "$FYERS_CLIENT_ID" || (echo "::error::Missing FYERS_CLIENT_ID secret"; exit 1)
+          test -n "$FYERS_ACCESS_TOKEN" || (echo "::error::Missing FYERS_ACCESS_TOKEN secret"; exit 1)
+      - name: Discover expired NIFTY and SENSEX option contracts
+        if: inputs.mode == 'discover'
+        env:
+          FYERS_CLIENT_ID: ${{ secrets.FYERS_CLIENT_ID }}
+          FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
+        run: |
+          python expired_options_download.py discover --start "${{ inputs.start }}" --end "${{ inputs.end }}" --outdir data/options
+      - name: Download selected option contracts (Standard-plan budget enforced)
+        if: inputs.mode == 'download'
+        env:
+          FYERS_CLIENT_ID: ${{ secrets.FYERS_CLIENT_ID }}
+          FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          raw = os.environ.get("OPTION_SYMBOLS", "")
+          symbols = [x.strip() for x in raw.split(",") if x.strip()]
+          if not symbols:
+              raise SystemExit("Enter at least one exact FYERS contract symbol in option_symbols.")
+          with open("data/options_symbols.txt", "w") as f:
+              f.write("\\n".join(symbols) + "\\n")
+          PY
+          python expired_options_download.py download --symbols-file data/options_symbols.txt --start "${{ inputs.start }}" --end "${{ inputs.end }}" --resolution "${{ inputs.resolution }}" --max-requests "${{ inputs.max_requests }}" --include-oi --include-greeks --outdir data/options
+        env:
+          FYERS_CLIENT_ID: ${{ secrets.FYERS_CLIENT_ID }}
+          FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
+          OPTION_SYMBOLS: ${{ inputs.option_symbols }}
+      - name: Upload option catalogue and candles
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fyers-nifty-sensex-options-${{ inputs.mode }}
+          path: data/options/
+          if-no-files-found: warn
+          retention-days: 90
