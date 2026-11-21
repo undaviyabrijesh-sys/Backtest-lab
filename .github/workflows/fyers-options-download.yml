@@ -63,10 +63,8 @@ jobs:
           python expired_options_download.py discover --start "${{ inputs.start }}" --end "${{ inputs.end }}" --outdir data/options
       - name: Download selected option contracts (Standard-plan budget enforced)
         if: inputs.mode == 'download'
-        env:
-          FYERS_CLIENT_ID: ${{ secrets.FYERS_CLIENT_ID }}
-          FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
         run: |
+          mkdir -p data
           python - <<'PY'
           import os
           raw = os.environ.get("OPTION_SYMBOLS", "")
